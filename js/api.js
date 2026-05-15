@@ -4,7 +4,7 @@ async function callClaude(systemPrompt, userMessage) {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   
   const body = {
-    model: 'openai/gpt-oss-20b',
+    model: 'groq/compound',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage }
