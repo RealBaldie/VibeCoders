@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeCode Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #141417;
+    --surface2: #1c1c21;
+    --surface3: #242429;
+    --border: #2a2a32;
+    --accent: #7c6af7;
+    --accent2: #f77c6a;
+    --accent3: #6af7b8;
+    --text: #e8e8f0;
+    --text2: #8888a0;
+    --text3: #555568;
+    --error: #f76a6a;
+    --success: #6af7b8;
+    --warning: #f7c96a;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-ui: 'Syne', sans-serif;
+    --radius: 6px;
+    --glow: 0 0 20px rgba(124, 106, 247, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .logo-icon {
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:hover, select:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #9585ff; box-shadow: var(--glow); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+
+  .btn-run {
+    background: var(--accent3);
+    color: #0d1a14;
+    font-weight: 700;
+  }
+  .btn-run:hover { background: #8affc8; }
+  .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--error);
+    border: 1px solid var(--error);
+  }
+  .btn-danger:hover { background: rgba(247,106,106,0.1); }
+
+  .spacer { flex: 1; }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+  .status-dot.error { background: var(--error); }
+  .status-dot.thinking { background: var(--warning); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    grid-template-rows: 1fr;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* ── LEFT PANEL ── */
+  #left-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 14px;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .panel-header svg { opacity: 0.5; }
+
+  #prompt-history {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #prompt-history::-webkit-scrollbar { width: 4px; }
+  #prompt-history::-webkit-scrollbar-track { background: transparent; }
+  #prompt-history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .history-item {
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+
+  .history-item:hover { border-color: var(--accent); color: var(--text); }
+
+  .history-item .hist-num {
+    font-family: var(--font-ui);
+    font-size: 9px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  #prompt-area {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #prompt-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+    min-height: 80px;
+  }
+
+  #prompt-input:focus { border-color: var(--accent); }
+  #prompt-input::placeholder { color: var(--text3); }
+
+  .prompt-actions { display: flex; gap: 6px; }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    padding: 4px 10px;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active { background: var(--accent); color: white; }
+
+  /* ── CENTER PANEL ── */
+  #center-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1a1a1f;
+  }
+
+  #file-tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+
+  #file-tabs::-webkit-scrollbar { height: 2px; }
+  #file-tabs::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .file-tab {
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+    color: var(--text3);
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+    border-bottom: 2px solid transparent;
+  }
+
+  .file-tab:hover { color: var(--text2); background: var(--surface2); }
+
+  .file-tab.active {
+    color: var(--text);
+    background: #1a1a1f;
+    border-bottom-color: var(--accent);
+  }
+
+  .file-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  #code-display {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  #code-display::-webkit-scrollbar { width: 6px; }
+  #code-display::-webkit-scrollbar-track { background: transparent; }
+  #code-display::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  #code-display pre {
+    margin: 0;
+    padding: 20px;
+    min-height: 100%;
+    background: transparent !important;
+  }
+
+  #code-display code {
+    font-family: var(--font-mono) !important;
+    font-size: 13px !important;
+    background: transparent !important;
+  }
+
+  .code-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text3);
+    gap: 12px;
+    font-family: var(--font-ui);
+  }
+
+  .code-empty .empty-icon {
+    font-size: 40px;
+    opacity: 0.3;
+  }
+
+  .code-empty p { font-size: 13px; }
+  .code-empty small { font-size: 11px; opacity: 0.6; font-family: var(--font-mono); }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #output-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  #output-area::-webkit-scrollbar { width: 4px; }
+  #output-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .output-line { margin-bottom: 2px; }
+  .output-line.err { color: var(--error); }
+  .output-line.ok { color: var(--accent3); }
+  .output-line.info { color: var(--text2); }
+  .output-line.warn { color: var(--warning); }
+  .output-line.ai { color: var(--accent); font-style: italic; }
+
+  #retry-panel {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #retry-panel.visible { display: flex; }
+
+  .retry-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--warning);
+    letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  #retry-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--warning);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    resize: none;
+    outline: none;
+    min-height: 60px;
+  }
+
+  /* ── AI THINKING OVERLAY ── */
+  #thinking-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,13,15,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+
+  #thinking-overlay.visible { display: flex; }
+
+  .thinking-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--glow), 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .thinking-spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .thinking-text {
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .thinking-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    animation: fadetext 2s infinite;
+  }
+
+  @keyframes fadetext { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  /* ── BOTTOM BAR ── */
+  #bottombar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .bottom-info {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--font-ui);
+  }
+
+  .retry-count {
+    font-size: 11px;
+    color: var(--warning);
+    font-family: var(--font-ui);
+    display: none;
+  }
+
+  .retry-count.visible { display: block; }
+
+  /* ── IFRAME RUNNER ── */
+  #run-iframe {
+    display: none;
+    position: fixed;
+    bottom: 60px; right: 16px;
+    width: 500px; height: 340px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    z-index: 50;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  #run-iframe.visible { display: block; }
+
+  #iframe-bar {
+    position: fixed;
+    bottom: 60px; right: 16px;
+    width: 500px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 6px 10px;
+    z-index: 51;
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #iframe-bar.visible { display: flex; }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(124,106,247,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,247,0.3);
+  }
+
+  select option { background: #1c1c21; }
+</style>
+</head>
+<body>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" style="
+  position:fixed;inset:0;background:rgba(13,13,15,0.85);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;backdrop-filter:blur(6px);
+">
+  <div style="
+    background:var(--surface);border:1px solid var(--accent);
+    border-radius:12px;padding:32px 36px;width:420px;
+    box-shadow:var(--glow),0 24px 60px rgba(0,0,0,0.6);
+    display:flex;flex-direction:column;gap:18px;
+  ">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
+      <div>
+        <div style="font-family:var(--font-ui);font-weight:800;font-size:17px;">VibeCode Editor</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);">Powered by Gemini 2.5 Flash</div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
+        Google AI Studio API Key
+      </label>
+      <input id="api-key-input" type="password"
+        placeholder="AIza…"
+        style="
+          background:var(--surface2);border:1px solid var(--border);
+          color:var(--text);padding:10px 14px;border-radius:var(--radius);
+          font-family:var(--font-mono);font-size:12px;outline:none;
+          width:100%;transition:border-color 0.2s;
+        "
+        onkeydown="if(event.key==='Enter')saveApiKey()"
+        oninput="this.style.borderColor='var(--border)'"
+      />
+      <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);line-height:1.5;">
+        <strong>Groq API Key</strong> — Incredibly fast, generous free tier (30 req/min, 10,000/day).
+        Get your free key at <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);">console.groq.com/keys</a>
+      </div>
+    </div>
+    <button onclick="saveApiKey()" style="
+      background:var(--accent);color:white;border:none;padding:10px;
+      border-radius:var(--radius);font-family:var(--font-ui);font-weight:700;
+      font-size:13px;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px;
+    " onmouseover="this.style.background='#9585ff'" onmouseout="this.style.background='var(--accent)'">
+      ✦ Start Vibe Coding
+    </button>
+  </div>
+</div>
+
+<!-- THINKING OVERLAY -->
+<div id="thinking-overlay">
+  <div class="thinking-card">
+    <div class="thinking-spinner"></div>
+    <div class="thinking-text">AI is thinking…</div>
+    <div class="thinking-sub" id="thinking-sub">generating code</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Vibe<span>Code</span>
+  </div>
+
+  <select id="lang-select">
+    <option value="javascript">JavaScript</option>
+    <option value="python">Python</option>
+    <option value="html">HTML / CSS</option>
+    <option value="react">React (JSX)</option>
+  </select>
+
+  <select id="level-select">
+    <option value="beginner">Beginner</option>
+    <option value="intermediate">Intermediate</option>
+    <option value="professional">Professional</option>
+  </select>
+
+  <button class="btn btn-ghost" id="btn-template" onclick="generateTemplate()">
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    Generate Template
+  </button>
+
+  <div class="spacer"></div>
+
+  <span class="retry-count" id="retry-label"></span>
+
+  <button class="btn btn-ghost" onclick="openSettings()" title="API Key Settings" style="padding:6px 8px;">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+  </button>
+  <div class="status-dot" id="status-dot"></div>
+
+  <button class="btn btn-run" id="btn-run" onclick="runCode()" disabled>
+    ▶ Run
+  </button>
+
+  <button class="btn btn-ghost" id="btn-download" onclick="downloadFiles()" disabled>
+    ↓ Download
+  </button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT: PROMPT PANEL -->
+  <div id="left-panel">
+    <div class="panel-header">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Prompt History
+    </div>
+
+    <div id="prompt-history">
+      <div style="color:var(--text3);font-size:11px;padding:8px;font-family:var(--font-ui)">
+        Your prompts will appear here…
+      </div>
+    </div>
+
+    <div id="prompt-area">
+      <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setMode('step')" id="mode-step">Step-by-step</button>
+        <button class="mode-btn" onclick="setMode('goal')" id="mode-goal">Big Goal</button>
+      </div>
+      <textarea id="prompt-input" placeholder="Describe what you want to build or change…&#10;&#10;e.g. Add a button that counts clicks" rows="5"></textarea>
+      <div class="prompt-actions">
+        <button class="btn btn-primary" style="flex:1" id="btn-submit" onclick="submitPrompt()" disabled>
+          ✦ Send to AI
+        </button>
+        <button class="btn btn-ghost" onclick="clearHistory()" title="Clear history">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: CODE PANEL -->
+  <div id="center-panel">
+    <div id="file-tabs"></div>
+    <div id="code-display">
+      <div class="code-empty" id="code-empty">
+        <div class="empty-icon">⚡</div>
+        <p>No code yet</p>
+        <small>Generate a template or send a prompt to start</small>
+      </div>
+      <pre id="code-pre" style="display:none"><code id="code-block"></code></pre>
+    </div>
+  </div>
+
+  <!-- RIGHT: OUTPUT PANEL -->
+  <div id="right-panel">
+    <div class="panel-header">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Console / Output
+    </div>
+    <div id="output-area">
+      <div class="output-line info">// VibeCode Editor ready · powered by Gemini 2.5 Flash</div>
+      <div class="output-line info">// Generate a template to get started</div>
+    </div>
+
+    <div id="retry-panel">
+      <div class="retry-label">
+        ⚠ AI needs your help
+      </div>
+      <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui)">The AI tried 3 times and still has an error. Describe where you think the issue might be:</div>
+      <textarea id="retry-input" placeholder="e.g. The error is in the click handler, I think the variable name is wrong…"></textarea>
+      <button class="btn btn-danger" onclick="submitRetry()">↻ Retry with hint</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottombar">
+  <div class="bottom-info" id="bottom-info">Ready</div>
+  <div class="spacer"></div>
+  <div class="tag" id="lang-tag">JavaScript</div>
+  <div class="tag" style="background:rgba(106,247,184,0.1);color:var(--accent3);border-color:rgba(106,247,184,0.3)" id="level-tag">Beginner</div>
+</div>
+
+<!-- SANDBOXED IFRAME FOR JS EXECUTION -->
+<div id="iframe-bar">
+  <span style="font-size:11px;color:var(--text2);font-family:var(--font-ui);flex:1">▶ Live Output</span>
+  <button class="btn btn-ghost" style="padding:2px 8px;font-size:10px" onclick="closeIframe()">✕</button>
+</div>
+<iframe id="run-iframe" sandbox="allow-scripts"></iframe>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const state = {
+  files: {},
+  activeFile: null,
+  history: [],
+  mode: 'step',
+  retryCount: 0,
+  lastError: null,
+  lastPrompt: null,
+  thinking: false,
+  apiKey: '',
+};
+
+// ─── UI HELPERS ──────────────────────────────────────────────────────────────
+function setThinking(on, msg='generating code') {
+  state.thinking = on;
+  document.getElementById('thinking-overlay').classList.toggle('visible', on);
+  document.getElementById('thinking-sub').textContent = msg;
+  document.getElementById('status-dot').className = 'status-dot' + (on ? ' thinking' : ' active');
+  document.getElementById('btn-submit').disabled = on;
+  document.getElementById('btn-template').disabled = on;
+}
+
+function log(msg, type='info') {
+  const area = document.getElementById('output-area');
+  const div = document.createElement('div');
+  div.className = 'output-line ' + type;
+  div.textContent = msg;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('output-area').innerHTML = '';
+}
+
+function setStatus(text) {
+  document.getElementById('bottom-info').textContent = text;
+}
+
+function updateTags() {
+  const lang = document.getElementById('lang-select').value;
+  const level = document.getElementById('level-select').value;
+  const names = { javascript:'JavaScript', python:'Python', html:'HTML/CSS', react:'React (JSX)' };
+  document.getElementById('lang-tag').textContent = names[lang] || lang;
+  document.getElementById('level-tag').textContent = level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+document.getElementById('lang-select').addEventListener('change', updateTags);
+document.getElementById('level-select').addEventListener('change', updateTags);
+
+// ─── FILE TABS ────────────────────────────────────────────────────────────────
+function renderTabs() {
+  const tabs = document.getElementById('file-tabs');
+  tabs.innerHTML = '';
+  for (const name of Object.keys(state.files)) {
+    const t = document.createElement('div');
+    t.className = 'file-tab' + (name === state.activeFile ? ' active' : '');
+    t.innerHTML = `<span class="file-dot"></span>${name}`;
+    t.onclick = () => switchFile(name);
+    tabs.appendChild(t);
+  }
+}
+
+function switchFile(name) {
+  state.activeFile = name;
+  renderTabs();
+  showCode(state.files[name], name);
+}
+
+function showCode(code, filename='') {
+  const empty = document.getElementById('code-empty');
+  const pre = document.getElementById('code-pre');
+  const block = document.getElementById('code-block');
+  if (!code) { empty.style.display='flex'; pre.style.display='none'; return; }
+  empty.style.display = 'none';
+  pre.style.display = 'block';
+
+  const ext = filename.split('.').pop();
+  const langMap = { js:'javascript', jsx:'javascript', py:'python', html:'html', css:'css', json:'json', md:'markdown' };
+  block.className = 'language-' + (langMap[ext] || 'javascript');
+  block.textContent = code;
+  hljs.highlightElement(block);
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-download').disabled = false;
+  document.getElementById('btn-submit').disabled = false;
+}
+
+function setFiles(files) {
+  state.files = files;
+  const keys = Object.keys(files);
+  state.activeFile = keys[0] || null;
+  renderTabs();
+  if (state.activeFile) showCode(files[state.activeFile], state.activeFile);
+}
+
+// ─── PROMPT HISTORY ───────────────────────────────────────────────────────────
+function addHistory(prompt) {
+  state.history.push({ prompt, code: { ...state.files } });
+  const area = document.getElementById('prompt-history');
+  // clear placeholder
+  if (state.history.length === 1) area.innerHTML = '';
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `<div class="hist-num">#${state.history.length}</div>${prompt.substring(0,80)}${prompt.length>80?'…':''}`;
+  item.onclick = () => restoreHistory(state.history.length - 1);
+  area.appendChild(item);
+  area.scrollTop = area.scrollHeight;
+}
+
+function restoreHistory(idx) {
+  const entry = state.history[idx];
+  if (!entry) return;
+  setFiles(entry.code);
+  log(`↩ Restored version #${idx+1}`, 'ai');
+}
+
+function clearHistory() {
+  state.history = [];
+  document.getElementById('prompt-history').innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px;font-family:var(--font-ui)">Your prompts will appear here…</div>';
+}
+
+// ─── MODE ─────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('mode-step').classList.toggle('active', m==='step');
+  document.getElementById('mode-goal').classList.toggle('active', m==='goal');
+}
+
+// ─── GEMINI API (plain fetch, no SDK) ────────────────────────────────────────
+let _geminiAI = null;
+
+async function callClaude(systemPrompt, userMessage) {
+  if (!state.apiKey) throw new Error('No API key set. Click the ⚙ settings button to add your Groq API key.');
+  
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  
+  const body = {
+    model: 'llama-3.3-70b-versatile',  // Best for code (fast + 70B params)
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ],
+    max_tokens: 8192,
+    temperature: 0.7,
+    top_p: 0.95,
+  };
+  
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.apiKey}`,
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new Error('Network error — check your internet connection and try again.');
+  }
+  
+  if (!response.ok) {
+    let msg = `HTTP ${response.status}`;
+    try { 
+      const d = await response.json(); 
+      msg = d?.error?.message || msg;
+    } catch(_) {}
+    
+    if (response.status === 401) throw new Error('Invalid API key. Click ⚙ to update your Groq key.');
+    if (response.status === 429) throw new Error('Rate limit hit. Groq free tier: 30 requests/min, 10,000/day. Wait a moment.');
+    if (response.status === 400) throw new Error(`Bad request: ${msg}`);
+    throw new Error(`API error: ${msg}`);
+  }
+  
+  const data = await response.json();
+  const message = data?.choices?.[0]?.message?.content;
+  
+  if (!message) throw new Error('Empty response from Groq. Try again.');
+  return message;
+}
+
+// ─── PARSE FILES FROM AI RESPONSE ────────────────────────────────────────────
+
+
+function getLangContext() {
+  const lang = document.getElementById('lang-select').value;
+  const level = document.getElementById('level-select').value;
+  return { lang, level };
+}
+
+function parseFilesFromResponse(text) {
+  // Look for ```filename patterns or FILE: patterns
+  const files = {};
+  
+  // Pattern: ```filename\ncode\n```
+  const blockRegex = /```(\S+?)\n([\s\S]*?)```/g;
+  let m;
+  while ((m = blockRegex.exec(text)) !== null) {
+    const lang = m[1];
+    const code = m[2].trim();
+    
+    // Map language to filename
+    const nameMap = {
+      javascript: 'script.js', js: 'script.js',
+      python: 'main.py', py: 'main.py',
+      html: 'index.html',
+      css: 'style.css',
+      jsx: 'App.jsx', react: 'App.jsx',
+      json: 'config.json',
+    };
+    
+    // Check if the "lang" looks like a filename
+    let filename;
+    if (lang.includes('.')) {
+      filename = lang;
+    } else {
+      filename = nameMap[lang.toLowerCase()] || lang + '.txt';
+    }
+    files[filename] = code;
+  }
+
+  // If nothing parsed, treat entire response as a single file
+  if (Object.keys(files).length === 0) {
+    const { lang } = getLangContext();
+    const nameMap2 = { javascript:'script.js', python:'main.py', html:'index.html', react:'App.jsx' };
+    files[nameMap2[lang] || 'code.txt'] = text.trim();
+  }
+
+  return files;
+}
+
+// ─── GENERATE TEMPLATE ───────────────────────────────────────────────────────
+async function generateTemplate() {
+  const { lang, level } = getLangContext();
+  setThinking(true, 'generating template');
+  clearLog();
+  log('⚡ Generating starter template…', 'ai');
+
+  const levelDesc = {
+    beginner: 'with very simple code, lots of comments, and basic concepts only',
+    intermediate: 'with clean code, some comments, and moderate complexity',
+    professional: 'with clean production-ready code, best practices, no hand-holding comments',
+  }[level];
+
+  const langInstructions = {
+    javascript: 'a JavaScript app (browser-based, no frameworks). Output files: index.html, script.js, style.css',
+    python: 'a Python script. Output file: main.py',
+    html: 'an HTML/CSS webpage. Output files: index.html, style.css',
+    react: 'a React app (using CDN scripts in index.html, no build tool). Output files: index.html, App.jsx',
+  }[lang];
+
+  const system = `You are a code generator for VibeCode Editor. Generate starter code templates.
+IMPORTANT: Output ONLY code blocks, no explanations. Use this exact format:
+\`\`\`filename.ext
+// code here
+\`\`\`
+Generate ${langInstructions}, ${levelDesc}.
+The template should be a simple but complete working example (a to-do list, counter, or similar useful demo).`;
+
+  try {
+    const response = await callClaude(system, `Generate a starter ${lang} template at ${level} level.`);
+    const files = parseFilesFromResponse(response);
+    setFiles(files);
+    addHistory(`[Template] ${lang} / ${level}`);
+    log('✓ Template generated!', 'ok');
+    log(`  Files: ${Object.keys(files).join(', ')}`, 'info');
+    setStatus(`Template ready · ${Object.keys(files).length} file(s)`);
+  } catch(e) {
+    log('✗ Error: ' + e.message, 'err');
+    setStatus('Error generating template');
+    document.getElementById('status-dot').className = 'status-dot error';
+  } finally {
+    setThinking(false);
+  }
+}
+
+// ─── SUBMIT PROMPT ───────────────────────────────────────────────────────────
+async function submitPrompt(hint='') {
+  const promptInput = document.getElementById('prompt-input');
+  const prompt = promptInput.value.trim();
+  if (!prompt && !hint) return;
+  if (state.thinking) return;
+
+  const { lang, level } = getLangContext();
+  const fullPrompt = hint ? `${prompt}\n\nUser hint: ${hint}` : prompt;
+  state.lastPrompt = fullPrompt;
+  state.retryCount = 0;
+
+  setThinking(true, 'writing code');
+  clearLog();
+  log(`✦ Processing: "${(prompt||'retry').substring(0,60)}…"`, 'ai');
+
+  const currentCode = Object.entries(state.files)
+    .map(([name, code]) => `\`\`\`${name}\n${code}\n\`\`\``)
+    .join('\n\n');
+
+  const modeContext = state.mode === 'goal'
+    ? 'This is a BIG GOAL prompt. Implement the full feature, generating all necessary files.'
+    : 'This is a STEP prompt. Make one focused change at a time.';
+
+  const system = `You are a code generation AI inside VibeCode Editor.
+Language: ${lang}, Level: ${level}.
+${modeContext}
+RULES:
+- Output ONLY code blocks in format: \`\`\`filename.ext\n...code...\n\`\`\`
+- Return ALL files (not just changed ones)
+- No explanations, no prose — only code blocks
+- Keep code working and complete`;
+
+  const userMsg = currentCode
+    ? `Current code:\n${currentCode}\n\nInstruction: ${fullPrompt}`
+    : `Instruction: ${fullPrompt}\nLanguage: ${lang}, Level: ${level}`;
+
+  try {
+    const response = await callClaude(system, userMsg);
+    const files = parseFilesFromResponse(response);
+    setFiles(files);
+    addHistory(prompt || '[retry with hint]');
+    promptInput.value = '';
+    log('✓ Code updated!', 'ok');
+    log(`  Files: ${Object.keys(files).join(', ')}`, 'info');
+    setStatus('Code updated · ' + new Date().toLocaleTimeString());
+    hideRetryPanel();
+    document.getElementById('retry-label').classList.remove('visible');
+    state.retryCount = 0;
+  } catch(e) {
+    log('✗ Error: ' + e.message, 'err');
+    setStatus('Error');
+    document.getElementById('status-dot').className = 'status-dot error';
+  } finally {
+    setThinking(false);
+  }
+}
+
+// ─── RUN CODE ─────────────────────────────────────────────────────────────────
+async function runCode() {
+  if (!state.activeFile && !Object.keys(state.files).length) return;
+  const lang = document.getElementById('lang-select').value;
+
+  clearLog();
+  log('▶ Running code…', 'info');
+
+  // ── Python via Pyodide ──
+  if (lang === 'python') {
+    await runPython();
+    return;
+  }
+
+  // ── React/JSX — inject Babel transpiler ──
+  if (lang === 'react') {
+    runReact();
+    return;
+  }
+
+  // ── HTML/JS — run in iframe ──
+  let htmlContent = '';
+  if (state.files['index.html']) {
+    htmlContent = state.files['index.html'];
+    if (state.files['style.css'] && !htmlContent.includes('<style>') && !htmlContent.includes('style.css')) {
+      htmlContent = htmlContent.replace('</head>', `<style>${state.files['style.css']}</style></head>`);
+    }
+    if (state.files['script.js'] && !htmlContent.includes('script.js')) {
+      htmlContent = htmlContent.replace('</body>', `<script>${state.files['script.js']}<\/script></body>`);
+    }
+  } else {
+    const js = state.files['script.js'] || state.files[state.activeFile] || '';
+    htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:sans-serif;padding:20px;background:#fff;color:#111}*{box-sizing:border-box}</style></head><body><script>
+    try { ${js} } catch(e) { document.body.innerHTML = '<pre style="color:red">'+e.toString()+'</pre>'; }
+    <\/script></body></html>`;
+  }
+
+  launchIframe(htmlContent);
+}
+
+function launchIframe(htmlContent) {
+  const intercepted = htmlContent.replace('<head>', `<head>
+    <script>
+    window.onerror = (msg, src, line, col, err) => {
+      parent.postMessage({type:'error', msg: msg + ' (line '+line+')'}, '*');
+      return false;
+    };
+    const _log = console.log, _warn = console.warn, _err = console.error;
+    console.log = (...a) => { parent.postMessage({type:'log', msg: a.map(x=>typeof x==='object'?JSON.stringify(x):x).join(' ')}, '*'); _log(...a); };
+    console.warn = (...a) => { parent.postMessage({type:'warn', msg: a.join(' ')}, '*'); _warn(...a); };
+    console.error = (...a) => { parent.postMessage({type:'error', msg: a.join(' ')}, '*'); _err(...a); };
+    <\/script>`);
+
+  const iframe = document.getElementById('run-iframe');
+  const ibar = document.getElementById('iframe-bar');
+  iframe.srcdoc = intercepted;
+  iframe.classList.add('visible');
+  ibar.classList.add('visible');
+  log('✓ Running in preview window', 'ok');
+  setStatus('Running…');
+
+  state._runError = null;
+  const errorWait = new Promise(res => {
+    const tid = setTimeout(() => res(null), 1500);
+    window._pendingRunResolve = (err) => { clearTimeout(tid); res(err); };
+  });
+  errorWait.then(error => {
+    if (error) {
+      log(`✗ Runtime error: ${error}`, 'err');
+      log('⟳ Attempting AI auto-fix…', 'warn');
+      autoFix(error);
+    }
+  });
+}
+
+function runReact() {
+  const jsx = state.files['App.jsx'] || state.files[Object.keys(state.files).find(f => f.endsWith('.jsx'))] || '';
+  const css = state.files['style.css'] || '';
+  const htmlContent = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<style>body{margin:0;font-family:sans-serif;background:#fff;color:#111}${css}</style>
+<script src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+</head><body>
+<div id="root"></div>
+<script type="text/babel">
+${jsx}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(typeof App !== 'undefined' ? App : () => React.createElement('div', null, 'No App component found'), null));
+<\/script>
+</body></html>`;
+  launchIframe(htmlContent);
+}
+
+async function runPython() {
+  log('⏳ Loading Python runtime (Pyodide)…', 'warn');
+  setStatus('Loading Python…');
+
+  const code = state.files['main.py'] || state.files[Object.keys(state.files).find(f => f.endsWith('.py'))] || '';
+  if (!code) { log('No Python file found.', 'err'); return; }
+
+  // Use a sandboxed iframe with Pyodide
+  const pyHtml = `<!DOCTYPE html><html><head>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"><\/script>
+</head><body>
+<script>
+async function main() {
+  parent.postMessage({type:'log', msg:'⏳ Pyodide loading…'}, '*');
+  const pyodide = await loadPyodide();
+  parent.postMessage({type:'log', msg:'✓ Python ready'}, '*');
+  // Redirect stdout/stderr
+  pyodide.runPython(\`
+import sys, io
+class _Capture(io.StringIO):
+    def write(self, s):
+        import js
+        if s.strip(): js.parent.postMessage({'type': 'log', 'msg': s.rstrip()}, '*')
+        return len(s)
+sys.stdout = _Capture()
+sys.stderr = _Capture()
+  \`);
+  try {
+    pyodide.runPython(${JSON.stringify(code)});
+    parent.postMessage({type:'log', msg:'✓ Done'}, '*');
+  } catch(e) {
+    parent.postMessage({type:'error', msg: e.message}, '*');
+  }
+}
+main();
+<\/script></body></html>`;
+
+  const iframe = document.getElementById('run-iframe');
+  const ibar = document.getElementById('iframe-bar');
+  iframe.srcdoc = pyHtml;
+  iframe.classList.add('visible');
+  ibar.classList.add('visible');
+  setStatus('Python running…');
+}
+
+
+// Listen for iframe messages
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'log') log('  ' + e.data.msg, 'ok');
+  else if (e.data?.type === 'warn') log('  ⚠ ' + e.data.msg, 'warn');
+  else if (e.data?.type === 'error') {
+    if (window._pendingRunResolve) { window._pendingRunResolve(e.data.msg); window._pendingRunResolve = null; }
+    else log('  ✗ ' + e.data.msg, 'err');
+  }
+});
+
+function closeIframe() {
+  document.getElementById('run-iframe').classList.remove('visible');
+  document.getElementById('iframe-bar').classList.remove('visible');
+}
+
+
+async function autoFix(error) {
+  state.retryCount++;
+  const label = document.getElementById('retry-label');
+  label.textContent = `Auto-fix attempt ${state.retryCount}/3`;
+  label.classList.add('visible');
+
+  if (state.retryCount > 3) {
+    log('✗ 3 auto-fix attempts failed.', 'err');
+    log('  Please provide a hint below.', 'warn');
+    showRetryPanel();
+    return;
+  }
+
+  state.lastError = error;
+  setThinking(true, `auto-fixing (attempt ${state.retryCount}/3)`);
+
+  const currentCode = Object.entries(state.files)
+    .map(([name, code]) => `\`\`\`${name}\n${code}\n\`\`\``)
+    .join('\n\n');
+
+  const system = `You are a bug-fixing AI. Fix the runtime error in the code.
+RULES:
+- Output ONLY code blocks: \`\`\`filename.ext\n...code...\n\`\`\`
+- Return ALL files
+- Fix the specific error mentioned
+- No explanations`;
+
+  try {
+    const response = await callClaude(system,
+      `Error: ${error}\n\nCurrent code:\n${currentCode}\n\nFix this error. Return all files.`
+    );
+    const files = parseFilesFromResponse(response);
+    setFiles(files);
+    log(`✓ Auto-fix ${state.retryCount} applied. Re-running…`, 'ok');
+    setThinking(false);
+    await new Promise(r => setTimeout(r, 500));
+    await runCode();
+  } catch(e) {
+    log('✗ Auto-fix failed: ' + e.message, 'err');
+    setThinking(false);
+  }
+}
+
+function showRetryPanel() {
+  document.getElementById('retry-panel').classList.add('visible');
+}
+
+function hideRetryPanel() {
+  document.getElementById('retry-panel').classList.remove('visible');
+  document.getElementById('retry-input').value = '';
+}
+
+async function submitRetry() {
+  const hint = document.getElementById('retry-input').value.trim();
+  if (!hint) return;
+  hideRetryPanel();
+  state.retryCount = 0;
+  await submitPrompt(hint);
+}
+
+// ─── DOWNLOAD ────────────────────────────────────────────────────────────────
+async function downloadFiles() {
+  if (!Object.keys(state.files).length) return;
+  const zip = new JSZip();
+  const folder = zip.folder('vibecode-project');
+  for (const [name, code] of Object.entries(state.files)) {
+    folder.file(name, code);
+  }
+  // Add README
+  folder.file('README.md', `# VibeCode Project\n\nGenerated with VibeCode Editor.\n\nFiles:\n${Object.keys(state.files).map(f=>'- '+f).join('\n')}\n`);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vibecode-project.zip';
+  a.click();
+  log('↓ Downloaded project zip', 'ok');
+}
+
+// ─── API KEY MANAGEMENT ──────────────────────────────────────────────────────
+function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  const key = input.value.trim();
+  if (!key || key.length < 10) {
+    input.style.borderColor = 'var(--error)';
+    input.placeholder = 'Enter your Google AI Studio key…';
+    return;
+  }
+  state.apiKey = key;
+  document.getElementById('settings-modal').style.display = 'none';
+  document.getElementById('btn-submit').disabled = false;
+  document.getElementById('btn-template').disabled = false;
+  log('✓ Groq API key saved. Ready to vibe!', 'ok');
+  setStatus('API key set · Ready');
+  document.getElementById('status-dot').className = 'status-dot active';
+}
+
+function openSettings() {
+  const modal = document.getElementById('settings-modal');
+  modal.style.display = 'flex';
+  if (state.apiKey) document.getElementById('api-key-input').value = state.apiKey;
+  document.getElementById('api-key-input').focus();
+}
+
+// Allow closing settings by clicking backdrop (only if key already set)
+document.getElementById('settings-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget && state.apiKey) {
+    e.currentTarget.style.display = 'none';
+  }
+});
+
+
+document.getElementById('prompt-input').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    submitPrompt();
+  }
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+updateTags();
+document.getElementById('status-dot').className = 'status-dot';
+// Keep buttons disabled until API key is provided
+document.getElementById('btn-submit').disabled = true;
+document.getElementById('btn-template').disabled = true;
+document.getElementById('btn-run').disabled = true;
+document.getElementById('btn-download').disabled = true;
+// Auto-focus the API key input
+setTimeout(() => document.getElementById('api-key-input').focus(), 100);
+</script>
+</body>
+</html>
