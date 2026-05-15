@@ -879,7 +879,7 @@ async function callClaude(systemPrompt, userMessage) {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   
   const body = {
-    model: 'mixtral-8x7b-32768',  // Best for code (fast + 70B params)
+    model: 'llama-3.1-70b-versatile',  // Best for code (fast + 70B params)
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage }
