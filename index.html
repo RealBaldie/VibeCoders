@@ -858,7 +858,9 @@ function restoreHistory(idx) {
 
 function clearHistory() {
   state.history = [];
+  state.conversationHistory = [];  // ← ADD THIS LINE
   document.getElementById('prompt-history').innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px;font-family:var(--font-ui)">Your prompts will appear here…</div>';
+  log('✓ History cleared (including conversation context)', 'ok');
 }
 
 // ─── MODE ─────────────────────────────────────────────────────────────────────
