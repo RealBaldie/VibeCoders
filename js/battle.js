@@ -16,7 +16,83 @@ let battleState = {
   battleActive: false
 };
 
-// Get username from input or generate default
+// Load saved API keys from localStorage
+function loadApiKeys() {
+  const savedGeminiKey = localStorage.getItem('geminiApiKey');
+  const savedGroqKey = localStorage.getItem('groqApiKey');
+  
+  if (savedGeminiKey) {
+    if (typeof state !== 'undefined') {
+      state.geminiApiKey = savedGeminiKey;
+    }
+    window.geminiApiKey = savedGeminiKey; // Fallback
+    logBattle('✓ Gemini API key loaded', 'ok');
+    return true;
+  } else {
+    logBattle('⚠️ No Gemini API key found. Please save keys in main editor first.', 'warn');
+    logBattle('   Go to the main editor, enter your API keys, then come back.', 'warn');
+    return false;
+  }
+}
+
+// Override callGemini to use localStorage key if state doesn't have it
+const originalCallGemini = callGemini;
+window.callGemini = async function(systemPrompt, userMessage) {
+  if ((typeof state !== 'undefined' && !state.geminiApiKey) || !window.geminiApiKey) {
+    const savedKey = localStorage.getItem('geminiApiKey');
+    if (savedKey) {
+      if (typeof state !== 'undefined') state.geminiApiKey = savedKey;
+      window.geminiApiKey = savedKey;
+    } else {
+      throw new Error('No Gemini API key. Please set it in the main editor first.');
+    }
+  }
+  
+  const apiKey = (typeof state !== 'undefined' && state.geminiApiKey) ? state.geminiApiKey : window.geminiApiKey;
+  return originalCallGemini.call(this, systemPrompt, userMessage);
+};
+
+// Setup code editor restrictions (no manual pasting/typing)
+function setupCodeEditorRestrictions() {
+  const textarea = document.getElementById('battle-code');
+  if (!textarea) return;
+  
+  // Block paste
+  textarea.addEventListener('paste', (e) => {
+    e.preventDefault();
+    logBattle('❌ Manual code pasting is not allowed! Use AI Assist to generate code.', 'err');
+  });
+  
+  // Block right-click
+  textarea.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    logBattle('❌ Right-click is disabled. Use AI Assist to generate code.', 'err');
+  });
+  
+  // Block drop
+  textarea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    logBattle('❌ Drag and drop is not allowed! Use AI Assist to generate code.', 'err');
+  });
+  
+  // Block cut
+  textarea.addEventListener('cut', (e) => {
+    e.preventDefault();
+    logBattle('❌ Cut is disabled. Use AI Assist to generate code.', 'err');
+  });
+  
+  // Warn on manual typing
+  let hasWarned = false;
+  textarea.addEventListener('input', (e) => {
+    if (!hasWarned && textarea.value.length > 0) {
+      hasWarned = true;
+      logBattle('💡 Remember: Use "AI Assist" to generate code instead of typing manually!', 'warn');
+      setTimeout(() => { hasWarned = false; }, 5000);
+    }
+  });
+}
+
+// Get username
 function getUsername() {
   let username = document.getElementById('username-input').value.trim();
   if (!username) {
@@ -59,6 +135,7 @@ function generateRandomName() {
 // Create a new battle room
 async function createBattle() {
   if (!isUsernameValid()) return;
+  if (!loadApiKeys()) return;
   
   const username = getUsername();
   battleState.myName = username;
@@ -76,6 +153,7 @@ async function createBattle() {
   document.getElementById('opponent-name').textContent = 'Waiting for opponent...';
   document.getElementById('waiting-opponent-name').textContent = 'opponent';
   
+  setupCodeEditorRestrictions();
   listenForOpponent();
   
   logBattle(`✨ Battle room created! Your username: "${username}"`, 'ok');
@@ -85,6 +163,7 @@ async function createBattle() {
 // Join an existing battle
 async function joinBattle() {
   if (!isUsernameValid()) return;
+  if (!loadApiKeys()) return;
   
   const roomId = document.getElementById('opponent-id').value.trim().toUpperCase();
   if (!roomId) {
@@ -103,6 +182,8 @@ async function joinBattle() {
   document.getElementById('battle-arena').style.display = 'block';
   document.getElementById('your-name').textContent = username;
   document.getElementById('challenge-prompt').textContent = battleState.challenge;
+  
+  setupCodeEditorRestrictions();
   
   logBattle(`⚔️ Joined room ${roomId} as "${username}"!`, 'ok');
   
@@ -172,6 +253,7 @@ function startBattle() {
   
   logBattle(`🏁 Battle started! You have 60 seconds!`, 'ok');
   logBattle(`🎯 Challenge: ${battleState.challenge.substring(0, 100)}...`, 'ai');
+  logBattle(`💡 Use "AI Assist" below to generate code — no manual typing allowed!`, 'info');
 }
 
 // Ask AI for help
@@ -258,7 +340,6 @@ button:hover { background: #005bb5; }
 <h1>${battleState.opponentName || 'Opponent'}'s Solution</h1>
 <p>Challenge: ${battleState.challenge.substring(0, 80)}...</p>
 <button onclick="alert('Working solution!')">Click Me</button>
-<p>This is a ${battleState.challenge.length > 100 ? 'complex' : 'simple'} implementation.</p>
 </div>
 </body>
 </html>`;
@@ -409,3 +490,6 @@ function logBattle(msg, type = 'info') {
   outputArea.appendChild(div);
   outputArea.scrollTop = outputArea.scrollHeight;
 }
+
+// Load keys on page load
+loadApiKeys();
