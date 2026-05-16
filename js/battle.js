@@ -358,45 +358,64 @@ async function judgeBattle() {
 Challenge given: "${battleState.challenge}"
 
 === PLAYER 1 (${battleState.myName}) SOLUTION ===
-${battleState.myCode}
+${battleState.myCode.substring(0, 3000)}
 
 === PLAYER 2 (${battleState.opponentName || 'Opponent'}) SOLUTION ===
-${battleState.opponentCode || 'No code submitted'}
+${(battleState.opponentCode || 'No code submitted').substring(0, 3000)}
 
 Evaluate both solutions on:
 1. Correctness (does it meet the challenge requirements?)
 2. Code quality (clean, readable, efficient)
 3. Creativity (unique approach, styling)
 
-Return a JSON object with:
-{
-  "winner": "Player 1" or "Player 2" or "Tie",
-  "score1": 0-100,
-  "score2": 0-100,
-  "feedback1": "Brief feedback for ${battleState.myName}",
-  "feedback2": "Brief feedback for ${battleState.opponentName || 'Opponent'}",
-  "reasoning": "Why this winner was chosen"
-}
-
-Only return the JSON, no other text.`;
+Return ONLY valid JSON. Do not include any other text, markdown, or explanations outside the JSON.
+Use this exact format:
+{"winner": "Player 1 or Player 2 or Tie", "score1": 0-100, "score2": 0-100, "feedback1": "feedback for player 1", "feedback2": "feedback for player 2", "reasoning": "why this winner was chosen"}`;
 
   try {
-    const result = await callGemini('You are a code battle judge.', judgePrompt);
-    const parsed = JSON.parse(result);
+    const result = await callGemini('You are a code battle judge. Return ONLY valid JSON.', judgePrompt);
+    
+    // Clean the response - remove any markdown code blocks
+    let cleanedResult = result.trim();
+    if (cleanedResult.startsWith('```json')) {
+      cleanedResult = cleanedResult.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    } else if (cleanedResult.startsWith('```')) {
+      cleanedResult = cleanedResult.replace(/```\n?/g, '');
+    }
+    
+    // Try to parse JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedResult);
+    } catch (e) {
+      // Try to extract JSON from the response using regex
+      const jsonMatch = cleanedResult.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    }
+    
+    // Validate required fields
+    if (!parsed.winner || parsed.score1 === undefined || parsed.score2 === undefined) {
+      throw new Error('Missing required fields in judge response');
+    }
+    
     displayResults(parsed);
   } catch(e) {
     logBattle('✗ Judging error: ' + e.message, 'err');
+    // Fallback results when judge fails
     displayResults({
       winner: 'Tie',
       score1: 50,
       score2: 50,
-      feedback1: 'Well played! The code shows good effort.',
-      feedback2: 'Well played! The code shows good effort.',
-      reasoning: 'Technical issue with judge AI. Both players played well!'
+      feedback1: 'Your code was submitted! The judge had trouble evaluating. Good effort!',
+      feedback2: 'Opponent\'s code was submitted! Good effort!',
+      reasoning: 'The judge AI had a technical issue. Both players showed good participation!'
     });
   }
 }
-
 // Display results
 function displayResults(results) {
   document.getElementById('results').style.display = 'block';
