@@ -13,14 +13,16 @@
 
 <div id="battle-container">
   
-  <!-- BACK BUTTON -->
-  <div class="battle-header">
-    <button class="btn btn-ghost" onclick="window.location.href='index.html'">
-      ← Back to Editor
-    </button>
-    <div class="battle-title">⚔️ VibeCode Battle</div>
-    <div></div>
-  </div>
+<!-- BACK BUTTON & NEW BATTLE BUTTON -->
+<div class="battle-header">
+  <button class="btn btn-ghost" onclick="window.location.href='index.html'">
+    ← Back to Editor
+  </button>
+  <div class="battle-title">⚔️ VibeCode Battle</div>
+  <button class="btn btn-primary" onclick="resetBattle()" id="new-battle-btn" style="display:none;">
+    ⚔️ New Battle
+  </button>
+</div>
 
   <!-- MAIN BATTLE UI -->
   <div id="battle-main">
@@ -95,8 +97,7 @@
       <div id="results" class="results-card" style="display:none;">
         <h3>🏆 Battle Results</h3>
         <div id="judge-output" class="judge-output"></div>
-        <button class="btn btn-primary" onclick="resetBattle()">⚔️ New Battle</button>
-        <button class="btn btn-ghost" onclick="window.location.href='index.html'">← Back to Editor</button>
+        <!-- Removed buttons from here - they will be in top bar -->
       </div>
 
       <!-- Output Area for logs -->
