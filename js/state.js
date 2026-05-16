@@ -4,6 +4,9 @@ const state = {
   // Current code files
   files: {},
   activeFile: null,
+
+  // For UI history display
+  history: [],
   
   // Synchronized history (user request → implementation)
   changeLog: [],
