@@ -1,0 +1,351 @@
+/* css/battle.css - Battle mode styles */
+
+#battle-container {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.battle-title {
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+#battle-main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.battle-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.battle-card h2 {
+  font-family: var(--font-ui);
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.battle-card p {
+  color: var(--text2);
+  margin-bottom: 30px;
+}
+
+.username-section {
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.username-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 8px;
+  font-family: var(--font-ui);
+}
+
+.join-form {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.battle-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  width: 300px;
+  outline: none;
+}
+
+.battle-input:focus {
+  border-color: var(--accent);
+}
+
+.or-divider {
+  color: var(--text3);
+  margin: 20px 0;
+}
+
+.room-info {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+}
+
+.room-code {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--accent3);
+  letter-spacing: 4px;
+  margin-top: 10px;
+}
+
+.waiting-text {
+  margin-top: 15px;
+  font-size: 12px;
+  color: var(--warning);
+  font-family: var(--font-ui);
+}
+
+/* Battle Arena */
+.battle-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 15px 25px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.opponent-info, .your-info {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--text2);
+}
+
+.opponent-info strong, .your-info strong {
+  color: var(--text);
+}
+
+.timer {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: bold;
+  color: var(--accent3);
+  background: var(--surface2);
+  padding: 10px 20px;
+  border-radius: 50px;
+}
+
+.timer.warning {
+  color: var(--error);
+  animation: pulse 1s infinite;
+}
+
+.challenge-card {
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.challenge-card h3 {
+  font-family: var(--font-ui);
+  margin-bottom: 10px;
+  color: var(--accent);
+}
+
+.challenge-prompt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.battle-editor {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.battle-textarea {
+  width: 100%;
+  background: #1a1a1f;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 20px;
+  border: none;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  min-height: 300px;
+}
+
+.ai-assist {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+}
+
+.battle-input-small {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+}
+
+.battle-input-small:focus {
+  border-color: var(--accent);
+}
+
+.opponent-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--surface2);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-indicator.waiting {
+  background: var(--warning);
+  animation: pulse 1s infinite;
+}
+
+.status-indicator.done {
+  background: var(--success);
+}
+
+.results-card {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.judge-output {
+  text-align: left;
+  background: var(--surface2);
+  padding: 20px;
+  border-radius: var(--radius);
+  margin: 20px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.judge-output h4 {
+  color: var(--accent);
+  margin-bottom: 10px;
+  font-family: var(--font-ui);
+}
+
+.battle-output {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.battle-output .panel-header {
+  padding: 10px 15px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+}
+
+.output-area {
+  height: 150px;
+  overflow-y: auto;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.output-area .output-line {
+  margin-bottom: 4px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.output-area .output-line.err { color: var(--error); }
+.output-area .output-line.ok { color: var(--accent3); }
+.output-area .output-line.info { color: var(--text2); }
+.output-area .output-line.warn { color: var(--warning); }
+.output-area .output-line.ai { color: var(--accent); font-style: italic; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .battle-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .join-form {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .battle-input {
+    width: 100%;
+  }
+  
+  .battle-card {
+    padding: 20px;
+  }
+  
+  .timer {
+    font-size: 28px;
+    padding: 5px 15px;
+  }
+}
