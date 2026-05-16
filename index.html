@@ -13,46 +13,80 @@
 </head>
 <body>
 
-<!-- SETTINGS MODAL - Updated for two API keys -->
-<div id="settings-modal" style="position:fixed;inset:0;background:rgba(13,13,15,0.85);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(6px);">
-  <div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:32px 36px;width:420px;box-shadow:var(--glow),0 24px 60px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:18px;">
-    <div style="display:flex;align-items:center;gap:10px;">
+<!-- SETTINGS MODAL - Add your own keys as backup -->
+<div id="settings-modal" style="position:fixed;inset:0;background:rgba(13,13,15,0.85);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(6px);overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:32px 36px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;box-shadow:var(--glow),0 24px 60px rgba(0,0,0,0.6);">
+    
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <div style="width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
       <div>
         <div style="font-family:var(--font-ui);font-weight:800;font-size:17px;">VibeCode Editor</div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);">Two-Tier AI: Groq + Gemini</div>
+        <div style="font-size:10px;color:var(--accent3);font-family:var(--font-ui);">✅ 10 Default Keys Active</div>
       </div>
     </div>
-    <div style="height:1px;background:var(--border);"></div>
     
-    <!-- Gemini API Key -->
-    <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="height:1px;background:var(--border);margin-bottom:20px;"></div>
+    
+    <!-- Key Stats -->
+    <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span>🔑 Gemini Keys:</span>
+        <span id="gemini-key-stats">Loading...</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>⚡ Groq Keys:</span>
+        <span id="groq-key-stats">Loading...</span>
+      </div>
+    </div>
+    
+    <!-- Gemini Model Selection -->
+    <div style="margin-bottom:20px;">
       <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
-        🔑 Google Gemini API Key
+        🤖 Gemini Model
       </label>
-      <input id="gemini-api-key" type="password" placeholder="AIza..." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;" onkeydown="if(event.key==='Enter')saveApiKeys()" />
-      <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);line-height:1.5;">
-        Get your free key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com/apikey</a>
-        — 2,000 requests/day, 1M token context
+      <select id="gemini-model-select" style="width:100%;margin-top:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:var(--radius);" onchange="changeGeminiModel()">
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast, 1M context)</option>
+        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Complex reasoning)</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Balanced)</option>
+        <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (Budget)</option>
+      </select>
+    </div>
+    
+    <div style="height:1px;background:var(--border);margin:15px 0;"></div>
+    
+    <!-- Add Your Own Keys Section -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
+          ➕ Add Your Own Gemini Keys (Backup)
+        </label>
+      </div>
+      <div id="gemini-keys-container">
+        <!-- User-added keys appear here -->
+      </div>
+      <button class="btn btn-ghost" onclick="addGeminiKeyField()" style="margin-top:8px;width:100%;">+ Add Gemini Key</button>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px;">
+        Add your own keys as backup when default keys are exhausted.
       </div>
     </div>
     
-    <div style="height:1px;background:var(--border);margin:8px 0;"></div>
-    
-    <!-- Groq API Key -->
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
-        ⚡ Groq API Key
-      </label>
-      <input id="groq-api-key" type="password" placeholder="gsk_..." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;" onkeydown="if(event.key==='Enter')saveApiKeys()" />
-      <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);line-height:1.5;">
-        Get your free key at <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);">console.groq.com/keys</a>
-        — Used for cheap text summarization (groq/compound model)
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
+          ➕ Add Your Own Groq Keys (Backup)
+        </label>
+      </div>
+      <div id="groq-keys-container">
+        <!-- User-added keys appear here -->
+      </div>
+      <button class="btn btn-ghost" onclick="addGroqKeyField()" style="margin-top:8px;width:100%;">+ Add Groq Key</button>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px;">
+        Add your own keys as backup when default keys are exhausted.
       </div>
     </div>
     
-    <button onclick="saveApiKeys()" style="background:var(--accent);color:white;border:none;padding:10px;border-radius:var(--radius);font-family:var(--font-ui);font-weight:700;font-size:13px;cursor:pointer;margin-top:8px;">
-      ✦ Start Vibe Coding
+    <button onclick="saveAllApiKeys()" style="background:var(--accent);color:white;border:none;padding:12px;border-radius:var(--radius);font-family:var(--font-ui);font-weight:700;font-size:13px;cursor:pointer;width:100%;margin-top:10px;">
+      ✦ Close & Start Vibe Coding
     </button>
   </div>
 </div>
