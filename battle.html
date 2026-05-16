@@ -79,6 +79,9 @@
         <div class="editor-header">
           <span>📝 Your Code</span>
           <button class="btn btn-run" onclick="submitSolution()" id="submit-btn" disabled>🚀 Submit Solution</button>
+          <button class="btn btn-primary" onclick="startBattle()" id="start-battle-btn" style="display:none;">
+            🎮 Start Battle
+          </button>
         </div>
         <textarea id="battle-code" class="battle-textarea" placeholder="Write your solution here... (AI will help you generate code)" rows="15"></textarea>
         <div class="ai-assist">
@@ -112,6 +115,7 @@
   </div>
 </div>
 
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ui-helpers.js"></script>
