@@ -13,50 +13,57 @@
 </head>
 <body>
 
-<!-- SETTINGS MODAL -->
-<div id="settings-modal" style="
-  position:fixed;inset:0;background:rgba(13,13,15,0.85);
-  display:flex;align-items:center;justify-content:center;
-  z-index:200;backdrop-filter:blur(6px);
-">
-  <div style="
-    background:var(--surface);border:1px solid var(--accent);
-    border-radius:12px;padding:32px 36px;width:420px;
-    box-shadow:var(--glow),0 24px 60px rgba(0,0,0,0.6);
-    display:flex;flex-direction:column;gap:18px;
-  ">
+<!-- SETTINGS MODAL - Updated for two API keys -->
+<div id="settings-modal" style="...">
+  <div style="...">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
       <div>
         <div style="font-family:var(--font-ui);font-weight:800;font-size:17px;">VibeCode Editor</div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);">Powered by Groq</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);">Two-Tier AI: Groq + Gemini</div>
       </div>
     </div>
     <div style="height:1px;background:var(--border);"></div>
+    
+    <!-- Gemini API Key -->
     <div style="display:flex;flex-direction:column;gap:8px;">
       <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
-        Google Gemini API Key
+        🔑 Google Gemini API Key
       </label>
-      <input id="api-key-input" type="password"
+      <input id="gemini-api-key" type="password"
         placeholder="AIza..."
-        style="..."
-        onkeydown="if(event.key==='Enter')saveApiKey()"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;"
+        onkeydown="if(event.key==='Enter')saveApiKeys()"
       />
       <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);line-height:1.5;">
-        <strong>Google Gemini 2.5 Flash</strong> — 2,000 requests/day free, 1M token context.
         Get your free key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com/apikey</a>
+        — 2,000 requests/day, 1M token context
       </div>
     </div>
-    <button onclick="saveApiKey()" style="
-      background:var(--accent);color:white;border:none;padding:10px;
-      border-radius:var(--radius);font-family:var(--font-ui);font-weight:700;
-      font-size:13px;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px;
-    " onmouseover="this.style.background='#9585ff'" onmouseout="this.style.background='var(--accent)'">
+    
+    <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+    
+    <!-- Groq API Key -->
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <label style="font-family:var(--font-ui);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.8px;text-transform:uppercase;">
+        ⚡ Groq API Key
+      </label>
+      <input id="groq-api-key" type="password"
+        placeholder="gsk_..."
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;"
+        onkeydown="if(event.key==='Enter')saveApiKeys()"
+      />
+      <div style="font-size:10px;color:var(--text3);font-family:var(--font-ui);line-height:1.5;">
+        Get your free key at <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);">console.groq.com/keys</a>
+        — Used for cheap text summarization (groq/compound model)
+      </div>
+    </div>
+    
+    <button onclick="saveApiKeys()" style="background:var(--accent);color:white;border:none;padding:10px;border-radius:var(--radius);font-family:var(--font-ui);font-weight:700;font-size:13px;cursor:pointer;margin-top:8px;">
       ✦ Start Vibe Coding
     </button>
   </div>
 </div>
-
 <!-- THINKING OVERLAY -->
 <div id="thinking-overlay">
   <div class="thinking-card">
