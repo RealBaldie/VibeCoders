@@ -1,71 +1,76 @@
-// js/state.js - Complete state management with changeLog
+// js/state.js - NO KEYS IN FRONTEND
 
 const state = {
-  // Current code files
   files: {},
   activeFile: null,
-
-  // For UI history display
   history: [],
-  
-  // Synchronized history (user request → implementation)
   changeLog: [],
-  
-  // UI state
   mode: 'step',
   retryCount: 0,
   lastError: null,
   lastPrompt: null,
   thinking: false,
   
-  // API keys
-  groqApiKey: '',
-  geminiApiKey: '',
+  // No keys stored here anymore!
+  geminiModel: 'gemini-2.5-flash',
   
-  // Helper methods
-  getLastNRequestSummaries(n) {
-    return this.changeLog.slice(-n).map(entry => entry.request.summary);
+  // User-added keys (stored locally only)
+  userGeminiKeys: [],
+  userGroqKeys: [],
+  
+  // Backend proxy URL
+  backendUrl: 'https://your-backend.onrender.com', // Your proxy server
+  
+  addGeminiKey(key) {
+    if (key && !this.userGeminiKeys.includes(key)) {
+      this.userGeminiKeys.push(key);
+      this.saveToLocalStorage();
+      return true;
+    }
+    return false;
   },
   
-  getLastNImplementationSummaries(n) {
-    return this.changeLog.slice(-n).map(entry => entry.implementation.summary);
+  addGroqKey(key) {
+    if (key && !this.userGroqKeys.includes(key)) {
+      this.userGroqKeys.push(key);
+      this.saveToLocalStorage();
+      return true;
+    }
+    return false;
   },
   
-  getAllRequestSummaries() {
-    return this.changeLog.map(entry => entry.request.summary);
+  removeGeminiKey(index) {
+    this.userGeminiKeys.splice(index, 1);
+    this.saveToLocalStorage();
   },
   
-  getAllImplementationSummaries() {
-    return this.changeLog.map(entry => entry.implementation.summary);
+  removeGroqKey(index) {
+    this.userGroqKeys.splice(index, 1);
+    this.saveToLocalStorage();
   },
   
-  getFullChangeLog() {
-    return this.changeLog;
+  saveToLocalStorage() {
+    localStorage.setItem('userGeminiKeys', JSON.stringify(this.userGeminiKeys));
+    localStorage.setItem('userGroqKeys', JSON.stringify(this.userGroqKeys));
+    localStorage.setItem('geminiModel', this.geminiModel);
   },
   
-  addChangeLogEntry(requestText, requestSummary, implementationSummary, filesModified) {
-    const newId = this.changeLog.length + 1;
-    this.changeLog.push({
-      id: newId,
-      timestamp: Date.now(),
-      request: {
-        text: requestText,
-        summary: requestSummary
-      },
-      implementation: {
-        summary: implementationSummary,
-        filesModified: filesModified
-      }
-    });
-    return newId;
+  loadFromLocalStorage() {
+    const savedUserGemini = localStorage.getItem('userGeminiKeys');
+    const savedUserGroq = localStorage.getItem('userGroqKeys');
+    const savedModel = localStorage.getItem('geminiModel');
+    
+    if (savedUserGemini) this.userGeminiKeys = JSON.parse(savedUserGemini);
+    if (savedUserGroq) this.userGroqKeys = JSON.parse(savedUserGroq);
+    if (savedModel) this.geminiModel = savedModel;
   },
   
   clearAll() {
     this.files = {};
     this.activeFile = null;
+    this.history = [];
     this.changeLog = [];
-    this.retryCount = 0;
-    this.lastError = null;
-    this.lastPrompt = null;
   }
 };
+
+state.loadFromLocalStorage();
