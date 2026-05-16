@@ -1,17 +1,26 @@
-async function callClaude(systemPrompt, userMessage) {
-  if (!state.apiKey) throw new Error('No API key set. Click the ⚙ settings button to add your Groq API key.');
+async function callGemini(systemPrompt, userMessage) {
+  if (!state.apiKey) throw new Error('No API key set. Add your Google Gemini API key.');
   
-  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  
+  // Gemini uses a different message format
+  const fullUserMessage = systemPrompt 
+    ? `System: ${systemPrompt}\n\nUser: ${userMessage}`
+    : userMessage;
   
   const body = {
-    model: 'groq/compound',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
+    contents: [
+      {
+        parts: [
+          { text: fullUserMessage }
+        ]
+      }
     ],
-    max_tokens: 8192,
-    temperature: 0.7,
-    top_p: 0.95,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 8192,
+      topP: 0.95,
+    }
   };
   
   let response;
@@ -20,12 +29,12 @@ async function callClaude(systemPrompt, userMessage) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.apiKey}`,
+        'X-goog-api-key': state.apiKey,
       },
       body: JSON.stringify(body)
     });
   } catch (e) {
-    throw new Error('Network error — check your internet connection and try again.');
+    throw new Error('Network error — check your connection');
   }
   
   if (!response.ok) {
@@ -33,19 +42,38 @@ async function callClaude(systemPrompt, userMessage) {
     try {
       const d = await response.json();
       msg = d?.error?.message || msg;
-    } catch (_) { }
+    } catch(_) {}
     
-    if (response.status === 401) throw new Error('Invalid API key. Click ⚙ to update your Groq key.');
-    if (response.status === 429) throw new Error('Rate limit hit. Groq free tier: 30 requests/min, 10,000/day. Wait a moment.');
-    if (response.status === 400) throw new Error(`Bad request: ${msg}`);
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Invalid API key. Get one from aistudio.google.com/apikey');
+    }
+    if (response.status === 429) {
+      throw new Error('Rate limit: 2,000 requests/day on free tier. Try again tomorrow.');
+    }
+    if (response.status === 400) {
+      throw new Error(`Bad request: ${msg}`);
+    }
     throw new Error(`API error: ${msg}`);
   }
   
   const data = await response.json();
-  const message = data?.choices?.[0]?.message?.content;
   
-  if (!message) throw new Error('Empty response from Groq. Try again.');
-  return message;
+  // Extract text from Gemini's response format
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty response from Gemini');
+  
+  // Log usage for debugging (optional)
+  const usage = data?.usageMetadata;
+  if (usage) {
+    console.log(`Gemini usage - Prompt: ${usage.promptTokenCount}, Response: ${usage.candidatesTokenCount}, Total: ${usage.totalTokenCount}`);
+  }
+  
+  return text;
+}
+
+// Keep the original callClaude function name for compatibility
+async function callClaude(systemPrompt, userMessage) {
+  return callGemini(systemPrompt, userMessage);
 }
 
 function saveApiKey() {
@@ -53,14 +81,14 @@ function saveApiKey() {
   const key = input.value.trim();
   if (!key || key.length < 10) {
     input.style.borderColor = 'var(--error)';
-    input.placeholder = 'Enter your Groq API key…';
+    input.placeholder = 'Enter your Gemini API key (starts with AIza)...';
     return;
   }
   state.apiKey = key;
   document.getElementById('settings-modal').style.display = 'none';
   document.getElementById('btn-submit').disabled = false;
   document.getElementById('btn-template').disabled = false;
-  log('✓ Groq API key saved. Ready to vibe!', 'ok');
+  log('✓ Gemini API key saved. Ready to vibe!', 'ok');
   setStatus('API key set · Ready');
   document.getElementById('status-dot').className = 'status-dot active';
 }
