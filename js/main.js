@@ -16,6 +16,10 @@ function saveApiKeys() {
   
   state.geminiApiKey = geminiKey;
   state.groqApiKey = groqKey;
+
+  // saves keys for battle mode
+  localStorage.setItem('geminiApiKey', geminiKey);
+  localStorage.setItem('groqApiKey', groqKey);
   
   document.getElementById('settings-modal').style.display = 'none';
   document.getElementById('btn-submit').disabled = false;
