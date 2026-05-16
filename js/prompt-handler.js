@@ -1,3 +1,5 @@
+// js/prompt-handler.js - Handles user prompts using the pipeline
+
 async function generateTemplate() {
   const { lang, level } = getLangContext();
   setThinking(true, 'generating template');
@@ -17,23 +19,31 @@ async function generateTemplate() {
     react: 'a React app (using CDN scripts in index.html, no build tool). Output files: index.html, App.jsx',
   }[lang];
 
-  const system = `You are a code generator for VibeCode Editor. Generate starter code templates.
+  // For template generation, we bypass the pipeline and use Gemini directly
+  const system = `You are a code generator. Generate starter code templates.
 IMPORTANT: Output ONLY code blocks, no explanations. Use this exact format:
 \`\`\`filename.ext
 // code here
 \`\`\`
-Generate ${langInstructions}, ${levelDesc}.
-The template should be a simple but complete working example (a to-do list, counter, or similar useful demo).`;
+Generate ${langInstructions}, ${levelDesc}.`;
 
   try {
-    const response = await callClaude(system, `Generate a starter ${lang} template at ${level} level.`);
+    const response = await callGemini(system, `Generate a starter ${lang} template at ${level} level.`);
     const files = parseFilesFromResponse(response);
     setFiles(files);
-    addHistory(`[Template] ${lang} / ${level}`);
+    
+    // Add initial changeLog entry
+    state.addChangeLogEntry(
+      `[Template] ${lang} / ${level}`,
+      `User requested ${lang} ${level} level starter template`,
+      `Generated starter template with files: ${Object.keys(files).join(', ')}`,
+      Object.keys(files)
+    );
+    
     log('✓ Template generated!', 'ok');
     log(`  Files: ${Object.keys(files).join(', ')}`, 'info');
     setStatus(`Template ready · ${Object.keys(files).length} file(s)`);
-  } catch (e) {
+  } catch(e) {
     log('✗ Error: ' + e.message, 'err');
     setStatus('Error generating template');
     document.getElementById('status-dot').className = 'status-dot error';
@@ -48,70 +58,47 @@ async function submitPrompt(hint = '') {
   if (!prompt && !hint) return;
   if (state.thinking) return;
 
-  const { lang, level } = getLangContext();
   const fullPrompt = hint ? `${prompt}\n\nUser hint: ${hint}` : prompt;
   state.lastPrompt = fullPrompt;
   state.retryCount = 0;
 
-  setThinking(true, 'writing code');
+  setThinking(true, 'running compression pipeline');
   clearLog();
   log(`✦ Processing: "${(prompt || 'retry').substring(0, 60)}…"`, 'ai');
 
-  const currentCode = Object.entries(state.files)
-    .map(([name, code]) => `\`\`\`${name}\n${code}\n\`\`\``)
-    .join('\n\n');
-
-  let conversationContext = '';
-  if (state.conversationHistory.length > 0) {
-    const lastExchanges = state.conversationHistory.slice(-4);
-    conversationContext = '\n\nPrevious conversation:\n' +
-      lastExchanges.map(msg => `${msg.role}: ${msg.content.substring(0, 300)}`).join('\n');
-  }
-
-  const modeContext = state.mode === 'goal'
-    ? 'This is a BIG GOAL prompt. Implement the full feature, generating all necessary files.'
-    : 'This is a STEP prompt. Make one focused change at a time.';
-
-  const system = `You are a code generation AI inside VibeCode Editor.
-Language: ${lang}, Level: ${level}.
-${modeContext}
-RULES:
-- Output ONLY code blocks in format: \`\`\`filename.ext\n...code...\n\`\`\`
-- Return ALL files (not just changed ones)
-- No explanations, no prose — only code blocks
-- Keep code working and complete`;
-
-  const userMsg = currentCode
-    ? `Current code:\n${currentCode}${conversationContext}\n\nInstruction: ${fullPrompt}`
-    : `Instruction: ${fullPrompt}\nLanguage: ${lang}, Level: ${level}${conversationContext}`;
-
   try {
-    const response = await callClaude(system, userMsg);
-
-    state.conversationHistory.push(
-      { role: 'user', content: fullPrompt.substring(0, 500) },
-      { role: 'assistant', content: response.substring(0, 500) }
-    );
-    if (state.conversationHistory.length > 10) {
-      state.conversationHistory = state.conversationHistory.slice(-10);
-    }
-
-    const files = parseFilesFromResponse(response);
-    setFiles(files);
-    addHistory(prompt || '[retry with hint]');
+    // Run the full compression pipeline
+    const newFiles = await runCompressionPipeline(fullPrompt);
+    
+    // Success - clear input and reset state
     promptInput.value = '';
-    log('✓ Code updated!', 'ok');
-    log(`  Files: ${Object.keys(files).join(', ')}`, 'info');
-    log(`  Conversation history: ${state.conversationHistory.length / 2} exchanges`, 'info');
-    setStatus('Code updated · ' + new Date().toLocaleTimeString());
+    log('✓ Code updated via compression pipeline!', 'ok');
+    log(`  Files: ${Object.keys(newFiles).join(', ')}`, 'info');
+    log(`  ChangeLog entries: ${state.changeLog.length} total`, 'info');
+    setStatus(`Code updated · ${new Date().toLocaleTimeString()}`);
     hideRetryPanel();
     document.getElementById('retry-label').classList.remove('visible');
     state.retryCount = 0;
-  } catch (e) {
+  } catch(e) {
     log('✗ Error: ' + e.message, 'err');
     setStatus('Error');
     document.getElementById('status-dot').className = 'status-dot error';
   } finally {
     setThinking(false);
+  }
+}
+
+// Clear everything - reset state completely
+async function clearEverything() {
+  if (confirm('Clear all code, history, and changeLog? This cannot be undone.')) {
+    state.clearAll();
+    document.getElementById('prompt-history').innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px;font-family:var(--font-ui)">Your prompts will appear here…</div>';
+    document.getElementById('code-empty').style.display = 'flex';
+    document.getElementById('code-pre').style.display = 'none';
+    document.getElementById('file-tabs').innerHTML = '';
+    clearLog();
+    log('✓ All data cleared (files, history, changeLog)', 'ok');
+    log('  Generate a template or send a prompt to start fresh', 'info');
+    setStatus('Ready - all cleared');
   }
 }
