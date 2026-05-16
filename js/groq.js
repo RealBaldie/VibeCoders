@@ -1,4 +1,4 @@
-// js/groq.js - Groq API calls for summarization
+// js/groq.js - Groq API calls with two different models
 
 async function callGroq(prompt, options = {}) {
   if (!state.groqApiKey) {
@@ -8,7 +8,7 @@ async function callGroq(prompt, options = {}) {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   
   const body = {
-    model: options.model || 'groq/compound',  // or 'groq/compound-mini'
+    model: options.model || 'groq/compound',  // Allow model override
     messages: [{ role: 'user', content: prompt }],
     max_tokens: options.max_tokens || 200,
     temperature: options.temperature || 0.3,
@@ -40,7 +40,7 @@ async function callGroq(prompt, options = {}) {
       throw new Error('Invalid Groq API key. Check your settings.');
     }
     if (response.status === 429) {
-      throw new Error('Groq rate limit hit. Waiting 5 seconds...');
+      throw new Error('Groq rate limit hit. Waiting a moment...');
     }
     throw new Error(`Groq API error: ${msg}`);
   }
@@ -55,7 +55,7 @@ async function callGroq(prompt, options = {}) {
   return content.trim();
 }
 
-// Groq A: Text summarizer (request summarization)
+// Groq A: Text summarizer - uses groq/compound-mini (faster, cheaper)
 async function groqSummarizeRequest(currentPrompt, previousSummaries) {
   const prompt = `You are a request summarizer. Given previous user requests and a new request, generate a ONE-SENTENCE summary of the new request.
 
@@ -69,10 +69,14 @@ Format: "User requested [what they want]"
 
 Summary:`;
 
-  return await callGroq(prompt, { max_tokens: 150, temperature: 0.3 });
+  return await callGroq(prompt, { 
+    model: 'groq/compound-mini',  // ← Fast model for text
+    max_tokens: 150, 
+    temperature: 0.3 
+  });
 }
 
-// Groq B: File change summarizer (implementation summarization)
+// Groq B: File change summarizer - uses groq/compound (more accurate)
 async function groqSummarizeImplementation(geminiChanges, previousImplementationSummaries, filesModified) {
   const prompt = `You are an implementation summarizer. Given the changes Gemini just made to code files, summarize what changed.
 
@@ -90,5 +94,9 @@ Format: "Modified [filename]: [what changed]"
 
 Implementation summary:`;
 
-  return await callGroq(prompt, { max_tokens: 150, temperature: 0.3 });
+  return await callGroq(prompt, { 
+    model: 'groq/compound',  // ← More accurate model for code changes
+    max_tokens: 150, 
+    temperature: 0.3 
+  });
 }
