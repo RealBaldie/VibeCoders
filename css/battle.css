@@ -349,3 +349,51 @@
     padding: 5px 15px;
   }
 }
+
+
+
+/* Fix scrolling issues */
+html, body {
+  overflow-x: hidden;
+  height: auto;
+  min-height: 100vh;
+}
+
+#battle-container {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 20px;
+  overflow-y: auto;
+  height: auto;
+}
+
+.battle-textarea {
+  min-height: 200px;
+  max-height: 250px;
+}
+
+.battle-editor {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.battle-output {
+  margin-bottom: 80px;
+}
+
+#battle-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 100px;
+}
+
+/* Make results scrollable if too tall */
+.results-card {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.judge-output {
+  max-height: 300px;
+  overflow-y: auto;
+}
