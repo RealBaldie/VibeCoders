@@ -1,4 +1,4 @@
-// js/state.js - NO KEYS IN FRONTEND
+// js/state.js - Frontend only, no API keys!
 
 const state = {
   files: {},
@@ -11,66 +11,18 @@ const state = {
   lastPrompt: null,
   thinking: false,
   
-  // No keys stored here anymore!
+  // Backend proxy URL - CHANGE THIS TO YOUR DEPLOYED URL
+  backendUrl: 'https://vibecoders-backend2.onrender.com',
+  
   geminiModel: 'gemini-2.5-flash',
-  
-  // User-added keys (stored locally only)
-  userGeminiKeys: [],
-  userGroqKeys: [],
-  
-  // Backend proxy URL
-  backendUrl: 'https://your-backend.onrender.com', // Your proxy server
-  
-  addGeminiKey(key) {
-    if (key && !this.userGeminiKeys.includes(key)) {
-      this.userGeminiKeys.push(key);
-      this.saveToLocalStorage();
-      return true;
-    }
-    return false;
-  },
-  
-  addGroqKey(key) {
-    if (key && !this.userGroqKeys.includes(key)) {
-      this.userGroqKeys.push(key);
-      this.saveToLocalStorage();
-      return true;
-    }
-    return false;
-  },
-  
-  removeGeminiKey(index) {
-    this.userGeminiKeys.splice(index, 1);
-    this.saveToLocalStorage();
-  },
-  
-  removeGroqKey(index) {
-    this.userGroqKeys.splice(index, 1);
-    this.saveToLocalStorage();
-  },
-  
-  saveToLocalStorage() {
-    localStorage.setItem('userGeminiKeys', JSON.stringify(this.userGeminiKeys));
-    localStorage.setItem('userGroqKeys', JSON.stringify(this.userGroqKeys));
-    localStorage.setItem('geminiModel', this.geminiModel);
-  },
-  
-  loadFromLocalStorage() {
-    const savedUserGemini = localStorage.getItem('userGeminiKeys');
-    const savedUserGroq = localStorage.getItem('userGroqKeys');
-    const savedModel = localStorage.getItem('geminiModel');
-    
-    if (savedUserGemini) this.userGeminiKeys = JSON.parse(savedUserGemini);
-    if (savedUserGroq) this.userGroqKeys = JSON.parse(savedUserGroq);
-    if (savedModel) this.geminiModel = savedModel;
-  },
   
   clearAll() {
     this.files = {};
     this.activeFile = null;
     this.history = [];
     this.changeLog = [];
+    this.retryCount = 0;
+    this.lastError = null;
+    this.lastPrompt = null;
   }
 };
-
-state.loadFromLocalStorage();
