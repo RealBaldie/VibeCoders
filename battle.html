@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeCode Battle - Multiplayer Mode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/battle.css">
+</head>
+<body>
+
+<div id="battle-container">
+  
+  <!-- BACK BUTTON -->
+  <div class="battle-header">
+    <button class="btn btn-ghost" onclick="window.location.href='index.html'">
+      ← Back to Editor
+    </button>
+    <div class="battle-title">⚔️ VibeCode Battle</div>
+    <div></div>
+  </div>
+
+  <!-- MAIN BATTLE UI -->
+  <div id="battle-main">
+    
+    <!-- JOIN SECTION -->
+    <div id="join-section" class="battle-card">
+      <h2>Enter the Arena</h2>
+      <p>Challenge another coder to a 1-minute vibe coding battle</p>
+      
+      <div class="join-form">
+        <input type="text" id="opponent-id" placeholder="Enter opponent's username or battle ID" class="battle-input">
+        <button class="btn btn-primary" onclick="joinBattle()" id="join-btn">⚔️ Start Battle</button>
+      </div>
+      
+      <div class="or-divider">— or —</div>
+      
+      <button class="btn btn-ghost" onclick="createBattle()" id="create-btn">🎮 Create New Battle Room</button>
+      
+      <div id="room-info" class="room-info" style="display:none;">
+        <p>Share this code with your opponent:</p>
+        <div class="room-code" id="room-code"></div>
+      </div>
+    </div>
+
+    <!-- BATTLE ARENA (hidden until battle starts) -->
+    <div id="battle-arena" style="display:none;">
+      
+      <!-- Battle Info -->
+      <div class="battle-info">
+        <div class="opponent-info">
+          <span>👤 Opponent: <strong id="opponent-name">Waiting...</strong></span>
+        </div>
+        <div class="timer" id="timer">01:00</div>
+        <div class="your-info">
+          <span>🎨 You: <strong id="your-name">Loading...</strong></span>
+        </div>
+      </div>
+
+      <!-- Challenge Prompt -->
+      <div class="challenge-card">
+        <h3>🎯 Your Challenge</h3>
+        <div id="challenge-prompt" class="challenge-prompt">Loading battle prompt...</div>
+      </div>
+
+      <!-- Your Code Editor (read-only for vibe coding) -->
+      <div class="battle-editor">
+        <div class="editor-header">
+          <span>📝 Your Code</span>
+          <button class="btn btn-run" onclick="submitSolution()" id="submit-btn" disabled>🚀 Submit Solution</button>
+        </div>
+        <textarea id="battle-code" class="battle-textarea" placeholder="Write your solution here... (AI will help you generate code)" rows="15"></textarea>
+        <div class="ai-assist">
+          <input type="text" id="ai-prompt" placeholder="Ask AI to help with your code... (e.g., 'Add a counter button')" class="battle-input-small">
+          <button class="btn btn-ghost" onclick="askAI()">✨ AI Assist</button>
+        </div>
+      </div>
+
+      <!-- Opponent Status -->
+      <div class="opponent-status" id="opponent-status">
+        <div class="status-indicator waiting"></div>
+        <span>Waiting for opponent to submit...</span>
+      </div>
+
+      <!-- Results Section (hidden until battle ends) -->
+      <div id="results" class="results-card" style="display:none;">
+        <h3>🏆 Battle Results</h3>
+        <div id="judge-output" class="judge-output"></div>
+        <button class="btn btn-primary" onclick="resetBattle()">⚔️ New Battle</button>
+        <button class="btn btn-ghost" onclick="window.location.href='index.html'">← Back to Editor</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="js/state.js"></script>
+<script src="js/ui-helpers.js"></script>
+<script src="js/gemini.js"></script>
+<script src="js/battle.js"></script>
+</body>
+</html>
