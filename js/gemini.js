@@ -161,3 +161,9 @@ function createDiffSummary(oldFiles, newFiles, modifiedFiles) {
   
   return diffs.join('\n\n');
 }
+
+
+// Compatibility alias for auto-fix
+async function callClaude(systemPrompt, userMessage) {
+  return callGemini(systemPrompt, userMessage);
+}
