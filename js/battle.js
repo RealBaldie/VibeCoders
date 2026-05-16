@@ -421,6 +421,12 @@ function displayResults(results) {
   document.getElementById('results').style.display = 'block';
   document.getElementById('opponent-status').style.display = 'none';
   
+  // Show the New Battle button in top bar
+  const newBattleBtn = document.getElementById('new-battle-btn');
+  if (newBattleBtn) {
+    newBattleBtn.style.display = 'flex';
+  }
+  
   const isWinner = results.winner === 'Player 1';
   const isTie = results.winner === 'Tie';
   
@@ -480,7 +486,44 @@ function endBattle() {
 
 // Reset battle
 function resetBattle() {
-  location.reload();
+  // Clear all battle state
+  battleState = {
+    roomId: null,
+    isHost: false,
+    opponentName: null,
+    myName: null,
+    challenge: null,
+    myCode: '',
+    opponentCode: null,
+    opponentSubmitted: false,
+    mySubmitted: false,
+    timer: null,
+    timeLeft: 60,
+    battleActive: false
+  };
+  
+  // Hide new battle button
+  const newBattleBtn = document.getElementById('new-battle-btn');
+  if (newBattleBtn) {
+    newBattleBtn.style.display = 'none';
+  }
+  
+  // Reset UI to join section
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('battle-arena').style.display = 'none';
+  document.getElementById('join-section').style.display = 'block';
+  document.getElementById('room-info').style.display = 'none';
+  document.getElementById('opponent-id').value = '';
+  document.getElementById('battle-code').value = '';
+  document.getElementById('username-input').value = '';
+  
+  // Clear logs
+  const outputArea = document.getElementById('output-area');
+  if (outputArea) {
+    outputArea.innerHTML = '<div class="output-line info">// Ready for battle!</div>';
+  }
+  
+  logBattle('🔄 Ready for a new battle! Enter username and create/join a room.', 'ok');
 }
 
 // Listen for opponent
