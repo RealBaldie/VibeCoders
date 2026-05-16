@@ -1,41 +1,56 @@
-// js/battle.js - Multiplayer battle logic with usernames
+// js/battle.js - REAL MULTIPLAYER with WebSocket
 
-// Battle state
-let battleState = {
-  roomId: null,
-  isHost: false,
-  opponentName: null,
-  myName: null,
-  challenge: null,
-  myCode: '',
-  opponentCode: null,
-  opponentSubmitted: false,
-  mySubmitted: false,
-  timer: null,
-  timeLeft: 60,
-  battleActive: false
-};
+// WebSocket connection
+let socket = null;
+let currentRoomId = null;
+let isHost = false;
+let battleActive = false;
+let myName = '';
+let opponentName = '';
+let currentChallenge = '';
+let myCode = '';
+let battleTimer = null;
+let timeLeft = 60;
+
+// DOM elements
+const joinSection = document.getElementById('join-section');
+const battleArena = document.getElementById('battle-arena');
+const usernameInput = document.getElementById('username-input');
+const opponentIdInput = document.getElementById('opponent-id');
+const roomInfo = document.getElementById('room-info');
+const roomCodeDisplay = document.getElementById('room-code');
+const yourNameDisplay = document.getElementById('your-name');
+const opponentNameDisplay = document.getElementById('opponent-name');
+const challengePrompt = document.getElementById('challenge-prompt');
+const battleCode = document.getElementById('battle-code');
+const submitBtn = document.getElementById('submit-btn');
+const timerDisplay = document.getElementById('timer');
+const opponentStatus = document.getElementById('opponent-status');
+const resultsDiv = document.getElementById('results');
+const judgeOutput = document.getElementById('judge-output');
+const newBattleBtn = document.getElementById('new-battle-btn');
+
+// Server URL - CHANGE THIS TO YOUR RENDER URL
+const SERVER_URL = 'https://vibecoders-backend.onrender.com'; // Replace with your actual Render URL
 
 // Load saved API keys from localStorage
 function loadApiKeys() {
   const savedGeminiKey = localStorage.getItem('geminiApiKey');
-  const savedGroqKey = localStorage.getItem('groqApiKey');
   
   if (savedGeminiKey) {
     if (typeof state !== 'undefined') {
       state.geminiApiKey = savedGeminiKey;
     }
-    window.geminiApiKey = savedGeminiKey; // Fallback
+    window.geminiApiKey = savedGeminiKey;
     logBattle('✓ Gemini API key loaded', 'ok');
     return true;
   } else {
     logBattle('⚠️ No Gemini API key found. Please save keys in main editor first.', 'warn');
-    logBattle('   Go to the main editor, enter your API keys, then come back.', 'warn');
     return false;
   }
 }
 
-// Override callGemini to use localStorage key if state doesn't have it
+// Override callGemini to use localStorage key
 const originalCallGemini = callGemini;
 window.callGemini = async function(systemPrompt, userMessage) {
   if ((typeof state !== 'undefined' && !state.geminiApiKey) || !window.geminiApiKey) {
@@ -52,380 +67,285 @@ window.callGemini = async function(systemPrompt, userMessage) {
   return originalCallGemini.call(this, systemPrompt, userMessage);
 };
 
-// Setup code editor restrictions (no manual pasting/typing)
-function setupCodeEditorRestrictions() {
-  const textarea = document.getElementById('battle-code');
-  if (!textarea) return;
-  
-  // Block paste
-  textarea.addEventListener('paste', (e) => {
-    e.preventDefault();
-    logBattle('❌ Manual code pasting is not allowed! Use AI Assist to generate code.', 'err');
+// Connect to WebSocket
+function connectWebSocket() {
+  socket = io(SERVER_URL, {
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5
   });
   
-  // Block right-click
-  textarea.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    logBattle('❌ Right-click is disabled. Use AI Assist to generate code.', 'err');
+  socket.on('connect', () => {
+    logBattle('✅ Connected to battle server!', 'ok');
   });
   
-  // Block drop
-  textarea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    logBattle('❌ Drag and drop is not allowed! Use AI Assist to generate code.', 'err');
+  socket.on('connect_error', (error) => {
+    logBattle(`❌ Connection error: ${error.message}`, 'err');
   });
   
-  // Block cut
-  textarea.addEventListener('cut', (e) => {
-    e.preventDefault();
-    logBattle('❌ Cut is disabled. Use AI Assist to generate code.', 'err');
+  socket.on('disconnect', () => {
+    logBattle('❌ Disconnected from server', 'err');
+    battleActive = false;
+    if (battleTimer) clearInterval(battleTimer);
   });
   
-  // Warn on manual typing
-  let hasWarned = false;
-  textarea.addEventListener('input', (e) => {
-    if (!hasWarned && textarea.value.length > 0) {
-      hasWarned = true;
-      logBattle('💡 Remember: Use "AI Assist" to generate code instead of typing manually!', 'warn');
-      setTimeout(() => { hasWarned = false; }, 5000);
+  socket.on('opponent-joined', (data) => {
+    const opponent = data.players.find(p => p.id !== socket.id);
+    if (opponent) {
+      opponentName = opponent.name;
+      opponentNameDisplay.textContent = opponentName;
+      logBattle(`👤 ${opponentName} joined the room!`, 'ok');
+      
+      if (isHost) {
+        logBattle('🎮 You are the host. Click "Start Battle" when ready!', 'info');
+        const startBtn = document.getElementById('start-battle-btn');
+        if (startBtn) startBtn.style.display = 'flex';
+      }
+    }
+  });
+  
+  socket.on('battle-started', (data) => {
+    startBattleUI(data.timeLeft, data.challenge);
+  });
+  
+  socket.on('timer-update', (data) => {
+    timeLeft = data.timeLeft;
+    updateTimerDisplay();
+  });
+  
+  socket.on('opponent-submitted', (data) => {
+    logBattle(`✅ ${data.name} submitted their solution!`, 'ok');
+    opponentStatus.innerHTML = `
+      <div class="status-indicator done"></div>
+      <span>${opponentName} submitted! Judging...</span>
+    `;
+  });
+  
+  socket.on('battle-ended', (data) => {
+    endBattleUI(data);
+  });
+  
+  socket.on('opponent-disconnected', (data) => {
+    logBattle(`⚠️ ${data.name} disconnected. Battle cancelled.`, 'err');
+    battleActive = false;
+    if (battleTimer) clearInterval(battleTimer);
+    submitBtn.disabled = true;
+  });
+}
+
+// Create battle room
+async function createBattle() {
+  const username = usernameInput.value.trim();
+  if (!username) {
+    logBattle('⚠️ Please enter a username!', 'warn');
+    return;
+  }
+  if (!loadApiKeys()) return;
+  
+  myName = username;
+  connectWebSocket();
+  
+  socket.emit('create-room', { username }, (response) => {
+    if (response.success) {
+      currentRoomId = response.roomId;
+      isHost = true;
+      currentChallenge = response.challenge;
+      
+      roomCodeDisplay.textContent = currentRoomId;
+      roomInfo.style.display = 'block';
+      joinSection.style.display = 'none';
+      battleArena.style.display = 'block';
+      yourNameDisplay.textContent = myName;
+      challengePrompt.textContent = currentChallenge;
+      opponentNameDisplay.textContent = 'Waiting for opponent...';
+      
+      logBattle(`✨ Battle room created! Room code: ${currentRoomId}`, 'ok');
+      logBattle(`📋 Share this code with your opponent to join`, 'ai');
+      logBattle(`⏳ Waiting for opponent to join...`, 'info');
+    } else {
+      logBattle(`❌ Failed to create room: ${response.error}`, 'err');
     }
   });
 }
 
-// Get username
-function getUsername() {
-  let username = document.getElementById('username-input').value.trim();
-  if (!username) {
-    const adjectives = ['Vibe', 'Code', 'Swift', 'Lucky', 'Neon', 'Shadow', 'Pixel', 'Rapid'];
-    const nouns = ['Coder', 'Wizard', 'Master', 'Ninja', 'Hero', 'Vibester', 'Dev', 'Ghost'];
-    username = adjectives[Math.floor(Math.random() * adjectives.length)] + 
-               nouns[Math.floor(Math.random() * nouns.length)] +
-               Math.floor(Math.random() * 100);
-    document.getElementById('username-input').value = username;
-  }
-  return username;
-}
-
-// Validate username
-function isUsernameValid() {
-  const username = document.getElementById('username-input').value.trim();
-  if (!username) {
-    logBattle('⚠️ Please enter a username before starting!', 'warn');
-    return false;
-  }
-  if (username.length < 2) {
-    logBattle('⚠️ Username must be at least 2 characters!', 'warn');
-    return false;
-  }
-  if (username.length > 20) {
-    logBattle('⚠️ Username cannot exceed 20 characters!', 'warn');
-    return false;
-  }
-  return true;
-}
-
-// Generate random name for opponent
-function generateRandomName() {
-  const adjectives = ['Vibe', 'Code', 'Swift', 'Lucky', 'Neon', 'Shadow', 'Pixel', 'Rapid', 'Turbo', 'Flash'];
-  const nouns = ['Coder', 'Wizard', 'Master', 'Ninja', 'Hero', 'Vibester', 'Dev', 'Ghost', 'Lord', 'Queen'];
-  return adjectives[Math.floor(Math.random() * adjectives.length)] + 
-         nouns[Math.floor(Math.random() * nouns.length)];
-}
-
-// Create a new battle room
-async function createBattle() {
-  if (!isUsernameValid()) return;
-  if (!loadApiKeys()) return;
-  
-  const username = getUsername();
-  battleState.myName = username;
-  battleState.isHost = true;
-  battleState.roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  
-  battleState.challenge = await getRandomChallenge();
-  
-  document.getElementById('room-code').textContent = battleState.roomId;
-  document.getElementById('room-info').style.display = 'block';
-  document.getElementById('join-section').style.display = 'none';
-  document.getElementById('battle-arena').style.display = 'block';
-  document.getElementById('your-name').textContent = username;
-  document.getElementById('challenge-prompt').textContent = battleState.challenge;
-  document.getElementById('opponent-name').textContent = 'Waiting for opponent...';
-  document.getElementById('waiting-opponent-name').textContent = 'opponent';
-  
-  setupCodeEditorRestrictions();
-  listenForOpponent();
-  
-  logBattle(`✨ Battle room created! Your username: "${username}"`, 'ok');
-  logBattle(`📋 Share room code: ${battleState.roomId} with your opponent`, 'ai');
-}
-
-// Join an existing battle
+// Join battle room
 async function joinBattle() {
-  if (!isUsernameValid()) return;
+  const username = usernameInput.value.trim();
+  const roomId = opponentIdInput.value.trim().toUpperCase();
+  
+  if (!username) {
+    logBattle('⚠️ Please enter a username!', 'warn');
+    return;
+  }
+  if (!roomId) {
+    logBattle('⚠️ Please enter a room code!', 'warn');
+    return;
+  }
   if (!loadApiKeys()) return;
   
-  const roomId = document.getElementById('opponent-id').value.trim().toUpperCase();
-  if (!roomId) {
-    logBattle('⚠️ Please enter a room code!', 'err');
+  myName = username;
+  connectWebSocket();
+  
+  socket.emit('join-room', { username, roomId }, (response) => {
+    if (response.success) {
+      currentRoomId = roomId;
+      isHost = false;
+      currentChallenge = response.challenge;
+      opponentName = response.opponentName;
+      
+      joinSection.style.display = 'none';
+      battleArena.style.display = 'block';
+      yourNameDisplay.textContent = myName;
+      opponentNameDisplay.textContent = opponentName;
+      challengePrompt.textContent = currentChallenge;
+      
+      logBattle(`⚔️ Joined room ${roomId}! Waiting for host to start...`, 'ok');
+    } else {
+      logBattle(`❌ Failed to join: ${response.error}`, 'err');
+    }
+  });
+}
+
+// Start battle (host only)
+function startBattle() {
+  if (!isHost) {
+    logBattle('Only the host can start the battle!', 'warn');
     return;
   }
   
-  const username = getUsername();
-  battleState.myName = username;
-  battleState.roomId = roomId;
-  battleState.isHost = false;
-  
-  battleState.challenge = await getRandomChallenge();
-  
-  document.getElementById('join-section').style.display = 'none';
-  document.getElementById('battle-arena').style.display = 'block';
-  document.getElementById('your-name').textContent = username;
-  document.getElementById('challenge-prompt').textContent = battleState.challenge;
-  
-  setupCodeEditorRestrictions();
-  
-  logBattle(`⚔️ Joined room ${roomId} as "${username}"!`, 'ok');
-  
-  setTimeout(() => {
-    battleState.opponentName = generateRandomName();
-    document.getElementById('opponent-name').textContent = battleState.opponentName;
-    logBattle(`👤 Connected to opponent: "${battleState.opponentName}"`, 'ok');
-    startBattle();
-  }, 2000);
+  socket.emit('start-battle', {}, (response) => {
+    if (!response.success) {
+      logBattle(`❌ Failed to start: ${response.error}`, 'err');
+    }
+  });
 }
 
-// Get random challenge
-async function getRandomChallenge() {
-  const challenges = [
-    "Build a counter app with increment, decrement, and reset buttons. Use HTML, CSS, and JavaScript.",
-    "Create a to-do list app where users can add and delete tasks. Style it nicely.",
-    "Build a simple calculator that can add, subtract, multiply, and divide two numbers.",
-    "Create a color palette generator that shows 5 random colors when a button is clicked.",
-    "Build a simple quiz app with 3 questions about programming. Show score at the end.",
-    "Create a digital clock that updates every second and shows date and time.",
-    "Build a simple weather card that displays fake weather data (temperature, condition, location).",
-    "Create a tip calculator that calculates tip amount and total per person.",
-    "Build a simple notes app where users can add and delete notes.",
-    "Create a random quote generator that fetches quotes from an array and displays them."
-  ];
+// Start battle UI
+function startBattleUI(initialTime, challenge) {
+  battleActive = true;
+  timeLeft = initialTime;
+  currentChallenge = challenge;
+  challengePrompt.textContent = challenge;
+  submitBtn.disabled = false;
   
-  try {
-    const prompt = `Generate a unique, creative coding challenge for a 1-minute vibe coding battle. 
-    The challenge should be simple enough to implement in 1 minute but fun. 
-    Return ONLY the challenge text, no explanations. Keep it under 200 characters.`;
-    
-    const challenge = await callGemini('You are a coding challenge generator.', prompt);
-    return challenge.substring(0, 500);
-  } catch(e) {
-    return challenges[Math.floor(Math.random() * challenges.length)];
-  }
-}
-
-// Start the battle
-function startBattle() {
-  battleState.battleActive = true;
-  battleState.timeLeft = 60;
-  battleState.mySubmitted = false;
-  battleState.opponentSubmitted = false;
+  const startBtn = document.getElementById('start-battle-btn');
+  if (startBtn) startBtn.style.display = 'none';
   
-  document.getElementById('submit-btn').disabled = false;
-  document.getElementById('timer').textContent = '01:00';
-  document.getElementById('timer').classList.remove('warning');
-  
-  battleState.timer = setInterval(() => {
-    if (!battleState.battleActive) return;
-    
-    battleState.timeLeft--;
-    const minutes = Math.floor(battleState.timeLeft / 60);
-    const seconds = battleState.timeLeft % 60;
-    document.getElementById('timer').textContent = 
-      `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    if (battleState.timeLeft <= 10) {
-      document.getElementById('timer').classList.add('warning');
-    }
-    
-    if (battleState.timeLeft <= 0) {
-      endBattle();
-    }
-  }, 1000);
+  updateTimerDisplay();
   
   logBattle(`🏁 Battle started! You have 60 seconds!`, 'ok');
-  logBattle(`🎯 Challenge: ${battleState.challenge.substring(0, 100)}...`, 'ai');
-  logBattle(`💡 Use "AI Assist" below to generate code — no manual typing allowed!`, 'info');
+  logBattle(`🎯 Challenge: ${challenge.substring(0, 100)}...`, 'ai');
+  
+  opponentStatus.innerHTML = `
+    <div class="status-indicator waiting"></div>
+    <span>Waiting for ${opponentName} to submit...</span>
+  `;
 }
 
-// Ask AI for help
-async function askAI() {
-  const prompt = document.getElementById('ai-prompt').value.trim();
-  if (!prompt) return;
+// Update timer display
+function updateTimerDisplay() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
-  const currentCode = document.getElementById('battle-code').value;
-  
-  logBattle(`🤖 Asking AI: "${prompt}"`, 'ai');
-  
-  const systemPrompt = `You are an AI assistant for a vibe coding battle. 
-  Help the user generate or modify code for this challenge: ${battleState.challenge}
-  
-  RULES:
-  - Output ONLY code, no explanations
-  - Keep code simple and working
-  - Use HTML/CSS/JavaScript`;
-  
-  const userPrompt = `Current code:\n${currentCode}\n\nUser request: ${prompt}\n\nGenerate the updated code. Return ONLY the complete HTML/JS/CSS.`;
-  
-  try {
-    const response = await callGemini(systemPrompt, userPrompt);
-    document.getElementById('battle-code').value = response;
-    logBattle('✓ AI generated code! Review and submit if ready.', 'ok');
-  } catch(e) {
-    logBattle('✗ AI error: ' + e.message, 'err');
+  if (timeLeft <= 10) {
+    timerDisplay.classList.add('warning');
   }
-  
-  document.getElementById('ai-prompt').value = '';
 }
 
 // Submit solution
-async function submitSolution() {
-  if (battleState.mySubmitted) {
-    logBattle('You already submitted!', 'warn');
+function submitSolution() {
+  if (!battleActive) {
+    logBattle('Battle is not active!', 'warn');
     return;
   }
   
-  battleState.myCode = document.getElementById('battle-code').value;
-  battleState.mySubmitted = true;
-  document.getElementById('submit-btn').disabled = true;
+  myCode = battleCode.value;
+  if (!myCode.trim()) {
+    logBattle('Please write some code before submitting!', 'warn');
+    return;
+  }
   
-  logBattle(`✅ "${battleState.myName}" submitted solution! Waiting for opponent...`, 'ok');
-  document.getElementById('opponent-status').innerHTML = `
-    <div class="status-indicator waiting"></div>
-    <span>Waiting for ${battleState.opponentName || 'opponent'} to submit...</span>
-  `;
-  
-  simulateOpponentSubmission();
-}
-
-// Simulate opponent submission
-function simulateOpponentSubmission() {
-  const delay = 10000 + Math.random() * 40000;
-  
-  setTimeout(() => {
-    if (!battleState.opponentSubmitted && battleState.battleActive) {
-      battleState.opponentSubmitted = true;
-      battleState.opponentCode = generateMockSolution();
-      
-      document.getElementById('opponent-status').innerHTML = `
-        <div class="status-indicator done"></div>
-        <span>${battleState.opponentName || 'Opponent'} submitted! Judging both solutions...</span>
+  socket.emit('submit-code', { code: myCode }, (response) => {
+    if (response.success) {
+      submitBtn.disabled = true;
+      logBattle(`✅ Solution submitted! Waiting for ${opponentName}...`, 'ok');
+      opponentStatus.innerHTML = `
+        <div class="status-indicator waiting"></div>
+        <span>Waiting for ${opponentName} to submit...</span>
       `;
-      
-      judgeBattle();
+    } else {
+      logBattle(`❌ Failed to submit: ${response.error}`, 'err');
     }
-  }, delay);
+  });
 }
 
-// Generate mock solution
-function generateMockSolution() {
-  return `<!DOCTYPE html>
-<html>
-<head><title>Solution</title><style>
-body { font-family: system-ui; padding: 20px; background: #f0f0f0; }
-.container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-button:hover { background: #005bb5; }
-</style></head>
-<body>
-<div class="container">
-<h1>${battleState.opponentName || 'Opponent'}'s Solution</h1>
-<p>Challenge: ${battleState.challenge.substring(0, 80)}...</p>
-<button onclick="alert('Working solution!')">Click Me</button>
-</div>
-</body>
-</html>`;
-}
-
-// Judge the battle
-async function judgeBattle() {
-  clearInterval(battleState.timer);
-  battleState.battleActive = false;
+// End battle UI
+function endBattleUI(data) {
+  battleActive = false;
+  if (battleTimer) clearInterval(battleTimer);
   
-  logBattle('⚖️ Judging both solutions...', 'ai');
-  document.getElementById('submit-btn').disabled = true;
+  const player1 = data.player1;
+  const player2 = data.player2;
+  const isPlayer1 = player1.name === myName;
+  
+  const myResult = isPlayer1 ? player1 : player2;
+  const opponentResult = isPlayer1 ? player2 : player1;
+  
+  judgeBattleWithAPI(currentChallenge, myResult.code, opponentResult.code, myResult.name, opponentResult.name);
+}
+
+// Judge battle using Gemini API
+async function judgeBattleWithAPI(challenge, myCode, opponentCode, myName, opponentName) {
+  logBattle('⚖️ Sending solutions to judge...', 'ai');
   
   const judgePrompt = `You are a judge for a vibe coding battle.
 
-Challenge given: "${battleState.challenge}"
+Challenge given: "${challenge}"
 
-=== PLAYER 1 (${battleState.myName}) SOLUTION ===
-${battleState.myCode.substring(0, 3000)}
+=== PLAYER 1 (${myName}) SOLUTION ===
+${myCode.substring(0, 3000)}
 
-=== PLAYER 2 (${battleState.opponentName || 'Opponent'}) SOLUTION ===
-${(battleState.opponentCode || 'No code submitted').substring(0, 3000)}
+=== PLAYER 2 (${opponentName}) SOLUTION ===
+${opponentCode.substring(0, 3000)}
 
 Evaluate both solutions on:
 1. Correctness (does it meet the challenge requirements?)
 2. Code quality (clean, readable, efficient)
 3. Creativity (unique approach, styling)
 
-Return ONLY valid JSON. Do not include any other text, markdown, or explanations outside the JSON.
+Return ONLY valid JSON. Do not include any other text.
 Use this exact format:
 {"winner": "Player 1 or Player 2 or Tie", "score1": 0-100, "score2": 0-100, "feedback1": "feedback for player 1", "feedback2": "feedback for player 2", "reasoning": "why this winner was chosen"}`;
 
   try {
     const result = await callGemini('You are a code battle judge. Return ONLY valid JSON.', judgePrompt);
     
-    // Clean the response - remove any markdown code blocks
     let cleanedResult = result.trim();
     if (cleanedResult.startsWith('```json')) {
       cleanedResult = cleanedResult.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (cleanedResult.startsWith('```')) {
-      cleanedResult = cleanedResult.replace(/```\n?/g, '');
     }
     
-    // Try to parse JSON
-    let parsed;
-    try {
-      parsed = JSON.parse(cleanedResult);
-    } catch (e) {
-      // Try to extract JSON from the response using regex
-      const jsonMatch = cleanedResult.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    }
-    
-    // Validate required fields
-    if (!parsed.winner || parsed.score1 === undefined || parsed.score2 === undefined) {
-      throw new Error('Missing required fields in judge response');
-    }
-    
-    displayResults(parsed);
+    const parsed = JSON.parse(cleanedResult);
+    displayResults(parsed, myName, opponentName);
   } catch(e) {
     logBattle('✗ Judging error: ' + e.message, 'err');
-    // Fallback results when judge fails
     displayResults({
       winner: 'Tie',
       score1: 50,
       score2: 50,
-      feedback1: 'Your code was submitted! The judge had trouble evaluating. Good effort!',
-      feedback2: 'Opponent\'s code was submitted! Good effort!',
-      reasoning: 'The judge AI had a technical issue. Both players showed good participation!'
-    });
+      feedback1: 'Thanks for playing! Good effort.',
+      feedback2: 'Thanks for playing! Good effort.',
+      reasoning: 'Both players participated well!'
+    }, myName, opponentName);
   }
 }
+
 // Display results
-function displayResults(results) {
-  document.getElementById('results').style.display = 'block';
-  document.getElementById('opponent-status').style.display = 'none';
-  
-  // Show the New Battle button in top bar
-  const newBattleBtn = document.getElementById('new-battle-btn');
-  if (newBattleBtn) {
-    newBattleBtn.style.display = 'flex';
-  }
+function displayResults(results, myName, opponentName) {
+  resultsDiv.style.display = 'block';
+  opponentStatus.style.display = 'none';
+  newBattleBtn.style.display = 'flex';
   
   const isWinner = results.winner === 'Player 1';
   const isTie = results.winner === 'Tie';
@@ -438,21 +358,21 @@ function displayResults(results) {
                       isTie ? 'var(--warning)' :
                       'var(--error)';
   
-  document.getElementById('judge-output').innerHTML = `
+  judgeOutput.innerHTML = `
     <div style="text-align: center; margin-bottom: 20px;">
       <div style="font-size: 48px; color: ${winnerColor};">${winnerText}</div>
       <div style="font-size: 24px; margin-top: 10px;">
-        ${battleState.myName}: ${results.score1} | ${battleState.opponentName || 'Opponent'}: ${results.score2}
+        ${myName}: ${results.score1} | ${opponentName}: ${results.score2}
       </div>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h4>🎯 Feedback for ${battleState.myName}:</h4>
+      <h4>🎯 Feedback for ${myName}:</h4>
       <p>${results.feedback1}</p>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h4>👤 Feedback for ${battleState.opponentName || 'Opponent'}:</h4>
+      <h4>👤 Feedback for ${opponentName}:</h4>
       <p>${results.feedback2}</p>
     </div>
     
@@ -463,82 +383,56 @@ function displayResults(results) {
   `;
 }
 
-// End battle due to timeout
-function endBattle() {
-  if (battleState.battleActive) {
-    battleState.battleActive = false;
-    clearInterval(battleState.timer);
-    
-    if (!battleState.mySubmitted) {
-      logBattle('⏰ Time\'s up! Your solution has been auto-submitted.', 'warn');
-      battleState.myCode = document.getElementById('battle-code').value || 'No code written';
-      battleState.mySubmitted = true;
-    }
-    
-    if (!battleState.opponentSubmitted) {
-      battleState.opponentSubmitted = true;
-      battleState.opponentCode = 'No code submitted in time';
-    }
-    
-    judgeBattle();
-  }
-}
-
 // Reset battle
 function resetBattle() {
-  // Clear all battle state
-  battleState = {
-    roomId: null,
-    isHost: false,
-    opponentName: null,
-    myName: null,
-    challenge: null,
-    myCode: '',
-    opponentCode: null,
-    opponentSubmitted: false,
-    mySubmitted: false,
-    timer: null,
-    timeLeft: 60,
-    battleActive: false
-  };
-  
-  // Hide new battle button
-  const newBattleBtn = document.getElementById('new-battle-btn');
-  if (newBattleBtn) {
-    newBattleBtn.style.display = 'none';
-  }
-  
-  // Reset UI to join section
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('battle-arena').style.display = 'none';
-  document.getElementById('join-section').style.display = 'block';
-  document.getElementById('room-info').style.display = 'none';
-  document.getElementById('opponent-id').value = '';
-  document.getElementById('battle-code').value = '';
-  document.getElementById('username-input').value = '';
-  
-  // Clear logs
-  const outputArea = document.getElementById('output-area');
-  if (outputArea) {
-    outputArea.innerHTML = '<div class="output-line info">// Ready for battle!</div>';
-  }
-  
-  logBattle('🔄 Ready for a new battle! Enter username and create/join a room.', 'ok');
+  if (socket) socket.disconnect();
+  location.reload();
 }
 
-// Listen for opponent
-function listenForOpponent() {
-  logBattle(`🎮 Waiting for opponent to join room ${battleState.roomId}...`, 'info');
+// Ask AI for help
+async function askAI() {
+  const prompt = document.getElementById('ai-prompt').value.trim();
+  if (!prompt) return;
   
-  setTimeout(() => {
-    if (battleState.isHost && !battleState.battleActive) {
-      battleState.opponentName = generateRandomName();
-      document.getElementById('opponent-name').textContent = battleState.opponentName;
-      document.getElementById('waiting-opponent-name').textContent = battleState.opponentName;
-      logBattle(`👤 "${battleState.opponentName}" joined the battle!`, 'ok');
-      startBattle();
-    }
-  }, 5000 + Math.random() * 5000);
+  const currentCode = battleCode.value;
+  
+  logBattle(`🤖 Asking AI: "${prompt}"`, 'ai');
+  
+  const systemPrompt = `You are an AI assistant for a vibe coding battle. 
+  Help the user generate or modify code for this challenge: ${currentChallenge}
+  
+  RULES:
+  - Output ONLY code, no explanations
+  - Keep code simple and working
+  - Use HTML/CSS/JavaScript`;
+  
+  const userPrompt = `Current code:\n${currentCode}\n\nUser request: ${prompt}\n\nGenerate the updated code. Return ONLY the complete HTML/JS/CSS.`;
+  
+  try {
+    const response = await callGemini(systemPrompt, userPrompt);
+    battleCode.value = response;
+    logBattle('✓ AI generated code! Review and submit if ready.', 'ok');
+  } catch(e) {
+    logBattle('✗ AI error: ' + e.message, 'err');
+  }
+  
+  document.getElementById('ai-prompt').value = '';
+}
+
+// Setup code editor restrictions
+function setupCodeEditorRestrictions() {
+  const textarea = battleCode;
+  if (!textarea) return;
+  
+  textarea.addEventListener('paste', (e) => {
+    e.preventDefault();
+    logBattle('❌ Manual code pasting is not allowed! Use AI Assist to generate code.', 'err');
+  });
+  
+  textarea.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    logBattle('❌ Right-click is disabled. Use AI Assist to generate code.', 'err');
+  });
 }
 
 // Log to battle console
@@ -553,5 +447,14 @@ function logBattle(msg, type = 'info') {
   outputArea.scrollTop = outputArea.scrollHeight;
 }
 
-// Load keys on page load
+// Initialize
+setupCodeEditorRestrictions();
 loadApiKeys();
+
+// Make functions global
+window.createBattle = createBattle;
+window.joinBattle = joinBattle;
+window.startBattle = startBattle;
+window.submitSolution = submitSolution;
+window.askAI = askAI;
+window.resetBattle = resetBattle;
