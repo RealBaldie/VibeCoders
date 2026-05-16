@@ -1,9 +1,30 @@
-/* css/battle.css - Battle mode styles */
+/* css/battle.css - Battle mode styles with proper scrolling */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  overflow-x: hidden;
+  height: auto;
+  min-height: 100vh;
+}
+
+body {
+  overflow-y: auto;
+  height: auto;
+}
 
 #battle-container {
   min-height: 100vh;
   background: var(--bg);
   padding: 20px;
+  display: block;
+  height: auto;
+  overflow-y: visible;
 }
 
 .battle-header {
@@ -13,6 +34,8 @@
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .battle-title {
@@ -25,6 +48,8 @@
 #battle-main {
   max-width: 1200px;
   margin: 0 auto;
+  padding-bottom: 80px;
+  display: block;
 }
 
 .battle-card {
@@ -170,6 +195,7 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--text);
+  word-wrap: break-word;
 }
 
 .battle-editor {
@@ -202,7 +228,8 @@
   resize: vertical;
   outline: none;
   line-height: 1.6;
-  min-height: 300px;
+  min-height: 200px;
+  max-height: 300px;
 }
 
 .ai-assist {
@@ -211,6 +238,7 @@
   padding: 12px 20px;
   background: var(--surface2);
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .battle-input-small {
@@ -223,6 +251,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   outline: none;
+  min-width: 150px;
 }
 
 .battle-input-small:focus {
@@ -261,6 +290,8 @@
   padding: 30px;
   text-align: center;
   margin-bottom: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .judge-output {
@@ -287,6 +318,8 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  margin-top: 20px;
+  margin-bottom: 30px;
 }
 
 .battle-output .panel-header {
@@ -311,6 +344,7 @@
   margin-bottom: 4px;
   padding: 2px 5px;
   border-radius: 3px;
+  word-wrap: break-word;
 }
 
 .output-area .output-line.err { color: var(--error); }
@@ -324,7 +358,7 @@
   50% { opacity: 0.5; }
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
   .battle-info {
     flex-direction: column;
@@ -338,6 +372,7 @@
   
   .battle-input {
     width: 100%;
+    max-width: 300px;
   }
   
   .battle-card {
@@ -348,52 +383,20 @@
     font-size: 28px;
     padding: 5px 15px;
   }
-}
-
-
-
-/* Fix scrolling issues */
-html, body {
-  overflow-x: hidden;
-  height: auto;
-  min-height: 100vh;
-}
-
-#battle-container {
-  min-height: 100vh;
-  background: var(--bg);
-  padding: 20px;
-  overflow-y: auto;
-  height: auto;
-}
-
-.battle-textarea {
-  min-height: 200px;
-  max-height: 250px;
-}
-
-.battle-editor {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.battle-output {
-  margin-bottom: 80px;
-}
-
-#battle-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-bottom: 100px;
-}
-
-/* Make results scrollable if too tall */
-.results-card {
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.judge-output {
-  max-height: 300px;
-  overflow-y: auto;
+  
+  .room-code {
+    font-size: 24px;
+  }
+  
+  .battle-textarea {
+    min-height: 150px;
+  }
+  
+  .ai-assist {
+    flex-direction: column;
+  }
+  
+  .battle-input-small {
+    width: 100%;
+  }
 }
