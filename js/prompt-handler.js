@@ -19,7 +19,6 @@ async function generateTemplate() {
     react: 'a React app (using CDN scripts in index.html, no build tool). Output files: index.html, App.jsx',
   }[lang];
 
-  // For template generation, we bypass the pipeline and use Gemini directly
   const system = `You are a code generator. Generate starter code templates.
 IMPORTANT: Output ONLY code blocks, no explanations. Use this exact format:
 \`\`\`filename.ext
@@ -32,7 +31,10 @@ Generate ${langInstructions}, ${levelDesc}.`;
     const files = parseFilesFromResponse(response);
     setFiles(files);
     
-    // Add initial changeLog entry
+    // Add to UI history
+    addHistory(`[Template] ${lang} / ${level}`);
+    
+    // Add to changeLog
     state.addChangeLogEntry(
       `[Template] ${lang} / ${level}`,
       `User requested ${lang} ${level} level starter template`,
@@ -70,7 +72,10 @@ async function submitPrompt(hint = '') {
     // Run the full compression pipeline
     const newFiles = await runCompressionPipeline(fullPrompt);
     
-    // Success - clear input and reset state
+    // Add to UI history (important for displaying in left panel)
+    addHistory(prompt || '[retry with hint]');
+    
+    // Success - clear input
     promptInput.value = '';
     log('✓ Code updated via compression pipeline!', 'ok');
     log(`  Files: ${Object.keys(newFiles).join(', ')}`, 'info');
@@ -92,6 +97,7 @@ async function submitPrompt(hint = '') {
 async function clearEverything() {
   if (confirm('Clear all code, history, and changeLog? This cannot be undone.')) {
     state.clearAll();
+    // Also clear the UI history display
     document.getElementById('prompt-history').innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px;font-family:var(--font-ui)">Your prompts will appear here…</div>';
     document.getElementById('code-empty').style.display = 'flex';
     document.getElementById('code-pre').style.display = 'none';
