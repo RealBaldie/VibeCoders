@@ -30,9 +30,15 @@
       <h2>Enter the Arena</h2>
       <p>Challenge another coder to a 1-minute vibe coding battle</p>
       
+      <!-- Username input -->
+      <div class="username-section">
+        <input type="text" id="username-input" placeholder="Enter your username" class="battle-input" maxlength="20">
+        <div class="username-hint">Choose a name your opponent will see</div>
+      </div>
+      
       <div class="join-form">
-        <input type="text" id="opponent-id" placeholder="Enter opponent's username or battle ID" class="battle-input">
-        <button class="btn btn-primary" onclick="joinBattle()" id="join-btn">⚔️ Start Battle</button>
+        <input type="text" id="opponent-id" placeholder="Enter opponent's battle code" class="battle-input">
+        <button class="btn btn-primary" onclick="joinBattle()" id="join-btn">⚔️ Join Battle</button>
       </div>
       
       <div class="or-divider">— or —</div>
@@ -42,6 +48,7 @@
       <div id="room-info" class="room-info" style="display:none;">
         <p>Share this code with your opponent:</p>
         <div class="room-code" id="room-code"></div>
+        <p class="waiting-text">Waiting for <span id="waiting-opponent-name">opponent</span> to join...</p>
       </div>
     </div>
 
@@ -65,7 +72,7 @@
         <div id="challenge-prompt" class="challenge-prompt">Loading battle prompt...</div>
       </div>
 
-      <!-- Your Code Editor (read-only for vibe coding) -->
+      <!-- Your Code Editor -->
       <div class="battle-editor">
         <div class="editor-header">
           <span>📝 Your Code</span>
@@ -84,12 +91,20 @@
         <span>Waiting for opponent to submit...</span>
       </div>
 
-      <!-- Results Section (hidden until battle ends) -->
+      <!-- Results Section -->
       <div id="results" class="results-card" style="display:none;">
         <h3>🏆 Battle Results</h3>
         <div id="judge-output" class="judge-output"></div>
         <button class="btn btn-primary" onclick="resetBattle()">⚔️ New Battle</button>
         <button class="btn btn-ghost" onclick="window.location.href='index.html'">← Back to Editor</button>
+      </div>
+
+      <!-- Output Area for logs -->
+      <div class="battle-output">
+        <div class="panel-header">📡 Battle Log</div>
+        <div id="output-area" class="output-area">
+          <div class="output-line info">// Ready for battle!</div>
+        </div>
       </div>
 
     </div>
