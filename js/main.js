@@ -1,12 +1,26 @@
-// js/main.js - Multi-key API management
+// js/main.js - Multi-key management with defaults
 
-// Render Gemini keys container
+// Update key stats display
+function updateKeyStats() {
+  const stats = state.getKeyStats();
+  const geminiSpan = document.getElementById('gemini-key-stats');
+  const groqSpan = document.getElementById('groq-key-stats');
+  
+  if (geminiSpan) {
+    geminiSpan.innerHTML = `${stats.gemini.total} total (${stats.gemini.default} default${stats.gemini.user ? ` + ${stats.gemini.user} yours` : ''})`;
+  }
+  if (groqSpan) {
+    groqSpan.innerHTML = `${stats.groq.total} total (${stats.groq.default} default${stats.groq.user ? ` + ${stats.groq.user} yours` : ''})`;
+  }
+}
+
+// Render user-added Gemini keys
 function renderGeminiKeys() {
   const container = document.getElementById('gemini-keys-container');
   if (!container) return;
   
   container.innerHTML = '';
-  state.geminiApiKeys.forEach((key, index) => {
+  state.userGeminiKeys.forEach((key, index) => {
     const keyDiv = document.createElement('div');
     keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
     keyDiv.innerHTML = `
@@ -16,27 +30,15 @@ function renderGeminiKeys() {
     `;
     container.appendChild(keyDiv);
   });
-  
-  // Add empty fields if less than 10
-  for (let i = state.geminiApiKeys.length; i < 10 && i < state.geminiApiKeys.length + 3; i++) {
-    const keyDiv = document.createElement('div');
-    keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
-    keyDiv.innerHTML = `
-      <input type="password" placeholder="New Gemini API key (AIza...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-family:var(--font-mono);font-size:11px;" 
-        onchange="addNewGeminiKey(this.value)">
-      <button style="padding:4px 8px;font-size:10px;visibility:hidden;">✕</button>
-    `;
-    container.appendChild(keyDiv);
-  }
 }
 
-// Render Groq keys container
+// Render user-added Groq keys
 function renderGroqKeys() {
   const container = document.getElementById('groq-keys-container');
   if (!container) return;
   
   container.innerHTML = '';
-  state.groqApiKeys.forEach((key, index) => {
+  state.userGroqKeys.forEach((key, index) => {
     const keyDiv = document.createElement('div');
     keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
     keyDiv.innerHTML = `
@@ -46,90 +48,114 @@ function renderGroqKeys() {
     `;
     container.appendChild(keyDiv);
   });
-  
-  // Add empty fields if less than 10
-  for (let i = state.groqApiKeys.length; i < 10 && i < state.groqApiKeys.length + 3; i++) {
-    const keyDiv = document.createElement('div');
-    keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
-    keyDiv.innerHTML = `
-      <input type="password" placeholder="New Groq API key (gsk_...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-family:var(--font-mono);font-size:11px;" 
-        onchange="addNewGroqKey(this.value)">
-      <button style="padding:4px 8px;font-size:10px;visibility:hidden;">✕</button>
-    `;
-    container.appendChild(keyDiv);
-  }
 }
 
-// Key management functions
+// Update user Gemini key
 function updateGeminiKey(index, value) {
-  if (value && value.startsWith('AIza')) {
-    state.geminiApiKeys[index] = value;
+  if (value && value.startsWith('AIza') && value !== state.userGeminiKeys[index]) {
+    // Remove old key from main array
+    const oldKey = state.userGeminiKeys[index];
+    const mainIndex = state.geminiApiKeys.indexOf(oldKey);
+    if (mainIndex > -1) state.geminiApiKeys[mainIndex] = value;
+    
+    // Update user array
+    state.userGeminiKeys[index] = value;
     state.saveToLocalStorage();
-    log(`✓ Gemini key ${index + 1} updated`, 'ok');
+    updateKeyStats();
+    log(`✓ Updated your Gemini key ${index + 1}`, 'ok');
   }
 }
 
+// Update user Groq key
 function updateGroqKey(index, value) {
-  if (value && value.startsWith('gsk_')) {
-    state.groqApiKeys[index] = value;
+  if (value && value.startsWith('gsk_') && value !== state.userGroqKeys[index]) {
+    const oldKey = state.userGroqKeys[index];
+    const mainIndex = state.groqApiKeys.indexOf(oldKey);
+    if (mainIndex > -1) state.groqApiKeys[mainIndex] = value;
+    
+    state.userGroqKeys[index] = value;
     state.saveToLocalStorage();
-    log(`✓ Groq key ${index + 1} updated`, 'ok');
+    updateKeyStats();
+    log(`✓ Updated your Groq key ${index + 1}`, 'ok');
   }
 }
 
+// Add new Gemini key
 function addNewGeminiKey(value) {
-  if (value && value.startsWith('AIza') && state.geminiApiKeys.length < 10) {
-    state.geminiApiKeys.push(value);
-    state.saveToLocalStorage();
-    renderGeminiKeys();
-    log(`✓ Added Gemini key ${state.geminiApiKeys.length}/10`, 'ok');
-  }
-}
-
-function addNewGroqKey(value) {
-  if (value && value.startsWith('gsk_') && state.groqApiKeys.length < 10) {
-    state.groqApiKeys.push(value);
-    state.saveToLocalStorage();
-    renderGroqKeys();
-    log(`✓ Added Groq key ${state.groqApiKeys.length}/10`, 'ok');
-  }
-}
-
-function removeGeminiKey(index) {
-  state.removeGeminiKey(index);
-  renderGeminiKeys();
-  log(`✓ Removed Gemini key ${index + 1}`, 'ok');
-}
-
-function removeGroqKey(index) {
-  state.removeGroqKey(index);
-  renderGroqKeys();
-  log(`✓ Removed Groq key ${index + 1}`, 'ok');
-}
-
-function addGeminiKeyField() {
-  // Just focus the first empty field
-  const inputs = document.querySelectorAll('#gemini-keys-container input');
-  for (const input of inputs) {
-    if (!input.value) {
-      input.focus();
-      return;
+  if (value && value.startsWith('AIza') && !state.userGeminiKeys.includes(value)) {
+    if (state.addGeminiKey(value)) {
+      renderGeminiKeys();
+      updateKeyStats();
+      log(`✓ Added your Gemini key (total: ${state.geminiApiKeys.length}/20 max)`, 'ok');
+    } else {
+      log('⚠️ Key already exists or invalid', 'warn');
     }
   }
-  log('⚠️ Maximum 10 Gemini keys allowed', 'warn');
+}
+
+// Add new Groq key
+function addNewGroqKey(value) {
+  if (value && value.startsWith('gsk_') && !state.userGroqKeys.includes(value)) {
+    if (state.addGroqKey(value)) {
+      renderGroqKeys();
+      updateKeyStats();
+      log(`✓ Added your Groq key (total: ${state.groqApiKeys.length}/20 max)`, 'ok');
+    } else {
+      log('⚠️ Key already exists or invalid', 'warn');
+    }
+  }
+}
+
+// Remove user Gemini key
+function removeGeminiKey(index) {
+  const key = state.userGeminiKeys[index];
+  if (confirm(`Remove your Gemini key?`)) {
+    state.removeGeminiKey(state.geminiApiKeys.indexOf(key));
+    renderGeminiKeys();
+    updateKeyStats();
+    log(`✓ Removed your Gemini key`, 'ok');
+  }
+}
+
+// Remove user Groq key
+function removeGroqKey(index) {
+  const key = state.userGroqKeys[index];
+  if (confirm(`Remove your Groq key?`)) {
+    state.removeGroqKey(state.groqApiKeys.indexOf(key));
+    renderGroqKeys();
+    updateKeyStats();
+    log(`✓ Removed your Groq key`, 'ok');
+  }
+}
+
+// Add empty field for new key
+function addGeminiKeyField() {
+  const container = document.getElementById('gemini-keys-container');
+  const keyDiv = document.createElement('div');
+  keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+  keyDiv.innerHTML = `
+    <input type="password" placeholder="New Gemini API key (AIza...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-family:var(--font-mono);font-size:11px;" 
+      onchange="addNewGeminiKey(this.value); this.parentElement.remove()">
+    <button class="btn btn-ghost" onclick="this.parentElement.remove()" style="padding:4px 8px;font-size:10px;">✕</button>
+  `;
+  container.appendChild(keyDiv);
+  keyDiv.querySelector('input').focus();
 }
 
 function addGroqKeyField() {
-  const inputs = document.querySelectorAll('#groq-keys-container input');
-  for (const input of inputs) {
-    if (!input.value) {
-      input.focus();
-      return;
-    }
-  }
-  log('⚠️ Maximum 10 Groq keys allowed', 'warn');
+  const container = document.getElementById('groq-keys-container');
+  const keyDiv = document.createElement('div');
+  keyDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+  keyDiv.innerHTML = `
+    <input type="password" placeholder="New Groq API key (gsk_...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-family:var(--font-mono);font-size:11px;" 
+      onchange="addNewGroqKey(this.value); this.parentElement.remove()">
+    <button class="btn btn-ghost" onclick="this.parentElement.remove()" style="padding:4px 8px;font-size:10px;">✕</button>
+  `;
+  container.appendChild(keyDiv);
+  keyDiv.querySelector('input').focus();
 }
 
+// Change Gemini model
 function changeGeminiModel() {
   const select = document.getElementById('gemini-model-select');
   if (select) {
@@ -139,36 +165,33 @@ function changeGeminiModel() {
   }
 }
 
+// Save and close settings
 function saveAllApiKeys() {
-  // Keys are already saved via individual updates
-  // Just close modal and show status
   document.getElementById('settings-modal').style.display = 'none';
   document.getElementById('btn-submit').disabled = false;
   document.getElementById('btn-template').disabled = false;
   
-  const geminiCount = state.geminiApiKeys.length;
-  const groqCount = state.groqApiKeys.length;
-  
+  const stats = state.getKeyStats();
   log(`✓ Load balancing ready!`, 'ok');
-  log(`  Gemini: ${geminiCount} key(s) - ${state.geminiModel}`, 'info');
-  log(`  Groq: ${groqCount} key(s) - auto-rotating on rate limits`, 'info');
-  setStatus(`API keys set · ${geminiCount} Gemini · ${groqCount} Groq`);
+  log(`  Gemini: ${stats.gemini.total} keys (${stats.gemini.default} default + ${stats.gemini.user} yours)`, 'info');
+  log(`  Groq: ${stats.groq.total} keys (${stats.groq.default} default + ${stats.groq.user} yours)`, 'info');
+  log(`  Keys rotate automatically on rate limits`, 'info');
+  setStatus(`API ready · ${stats.gemini.total} Gemini · ${stats.groq.total} Groq`);
   document.getElementById('status-dot').className = 'status-dot active';
 }
 
+// Open settings modal
 function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.style.display = 'flex';
   renderGeminiKeys();
   renderGroqKeys();
+  updateKeyStats();
   
-  // Set model select to current value
   const select = document.getElementById('gemini-model-select');
   if (select) {
     select.value = state.geminiModel;
   }
-  
-  document.getElementById('gemini-keys-container').scrollIntoView({ behavior: 'smooth' });
 }
 
 // Clear history
@@ -187,7 +210,7 @@ document.getElementById('prompt-input')?.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('settings-modal')?.addEventListener('click', (e) => {
-  if (e.target === e.currentTarget && (state.geminiApiKeys.length > 0 || state.groqApiKeys.length > 0)) {
+  if (e.target === e.currentTarget) {
     e.currentTarget.style.display = 'none';
   }
 });
@@ -195,18 +218,14 @@ document.getElementById('settings-modal')?.addEventListener('click', (e) => {
 // Initialize
 updateTags();
 document.getElementById('status-dot').className = 'status-dot';
-document.getElementById('btn-submit').disabled = true;
-document.getElementById('btn-template').disabled = true;
+document.getElementById('btn-submit').disabled = false;  // Enabled by default now
+document.getElementById('btn-template').disabled = false;
 document.getElementById('btn-run').disabled = true;
 document.getElementById('btn-download').disabled = true;
 
-// Show settings modal if no keys are saved
-if (state.geminiApiKeys.length === 0 && state.groqApiKeys.length === 0) {
-  setTimeout(() => openSettings(), 100);
-} else {
-  // Enable buttons if keys exist
-  if (state.geminiApiKeys.length > 0 && state.groqApiKeys.length > 0) {
-    document.getElementById('btn-submit').disabled = false;
-    document.getElementById('btn-template').disabled = false;
-  }
-}
+// Show welcome message with key stats
+const stats = state.getKeyStats();
+log(`🎉 VibeCode Editor Ready!`, 'ok');
+log(`  🔑 Gemini: ${stats.gemini.total} keys loaded (${stats.gemini.default} default)`, 'info');
+log(`  ⚡ Groq: ${stats.groq.total} keys loaded (${stats.groq.default} default)`, 'info');
+log(`  💡 Click ⚙ to add your own keys as backup`, 'info');
