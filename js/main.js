@@ -33,10 +33,9 @@ function openSettings() {
   modal.style.display = 'flex';
   if (state.geminiApiKey) document.getElementById('gemini-api-key').value = state.geminiApiKey;
   if (state.groqApiKey) document.getElementById('groq-api-key').value = state.groqApiKey;
-  document.getElementById('gemini-api-key').focus();  // ← Fixed: use correct ID
+  document.getElementById('gemini-api-key').focus();
 }
 
-// Update clearHistory to use clearEverything
 function clearHistory() {
   clearEverything();
 }
@@ -64,6 +63,4 @@ document.getElementById('btn-submit').disabled = true;
 document.getElementById('btn-template').disabled = true;
 document.getElementById('btn-run').disabled = true;
 document.getElementById('btn-download').disabled = true;
-
-// Fixed: Focus on the Gemini key input, not the old 'api-key-input'
 setTimeout(() => document.getElementById('gemini-api-key').focus(), 100);
