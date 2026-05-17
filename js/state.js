@@ -93,6 +93,21 @@ const state = {
   loadFromLocalStorage() {
     const savedModel = localStorage.getItem('geminiModel');
     if (savedModel) this.geminiModel = savedModel;
+  },
+
+  // Add this before the last closing brace of the state object
+  getKeyStats() {
+    const stats = {
+      gemini: { total: 0, user: 0 },
+      groq: { total: 0, user: 0 }
+    };
+    
+    if (this.geminiApiKeys) stats.gemini.total = this.geminiApiKeys.length;
+    if (this.userGeminiKeys) stats.gemini.user = this.userGeminiKeys.length;
+    if (this.groqApiKeys) stats.groq.total = this.groqApiKeys.length;
+    if (this.userGroqKeys) stats.groq.user = this.userGroqKeys.length;
+    
+    return stats;
   }
 };
 
