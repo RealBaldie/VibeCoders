@@ -56,7 +56,7 @@ const state = {
         user: this.userGroqKeys?.length || 0
       }
     };
-  }
+  },
 
   
   addChangeLogEntry(requestText, requestSummary, implementationSummary, filesModified) {
