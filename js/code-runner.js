@@ -1,5 +1,19 @@
 function launchIframe(htmlContent) {
-  const intercepted = htmlContent.replace('<head>', `<head>
+  // Create a complete HTML document
+  let finalHtml = htmlContent;
+  
+  // Ensure proper HTML structure
+  if (!finalHtml.includes('<!DOCTYPE html>')) {
+    finalHtml = '<!DOCTYPE html>\n' + finalHtml;
+  }
+  
+  // Inject CSS and JS properly BEFORE adding error handler
+  // First, extract CSS and JS from state.files if they exist
+  const cssContent = state.files['style.css'];
+  const jsContent = state.files['script.js'];
+  
+  // Build the error handler script
+  const errorHandler = `
     <script>
     window.onerror = (msg, src, line, col, err) => {
       parent.postMessage({type:'error', msg: msg + ' (line '+line+')'}, '*');
@@ -9,19 +23,67 @@ function launchIframe(htmlContent) {
     console.log = (...a) => { parent.postMessage({type:'log', msg: a.map(x=>typeof x==='object'?JSON.stringify(x):x).join(' ')}, '*'); _log(...a); };
     console.warn = (...a) => { parent.postMessage({type:'warn', msg: a.join(' ')}, '*'); _warn(...a); };
     console.error = (...a) => { parent.postMessage({type:'error', msg: a.join(' ')}, '*'); _err(...a); };
-    <\/script>`);
-
+    <\/script>
+  `;
+  
+  // Inject CSS into head if it exists in state.files AND not already in HTML
+  let cssInjected = false;
+  if (cssContent && !finalHtml.includes('<style') && !finalHtml.includes('style.css')) {
+    const styleTag = `<style id="vibecode-injected-css">\n${cssContent}\n</style>`;
+    if (finalHtml.includes('</head>')) {
+      finalHtml = finalHtml.replace('</head>', `${styleTag}</head>`);
+      cssInjected = true;
+    } else if (finalHtml.includes('<head>')) {
+      finalHtml = finalHtml.replace('<head>', `<head>${styleTag}`);
+      cssInjected = true;
+    } else {
+      // No head tag - add one
+      finalHtml = finalHtml.replace('<html>', '<html><head></head>');
+      finalHtml = finalHtml.replace('</head>', `${styleTag}</head>`);
+      cssInjected = true;
+    }
+  }
+  
+  // Inject error handler into head (after CSS to not interfere)
+  if (finalHtml.includes('</head>')) {
+    finalHtml = finalHtml.replace('</head>', `${errorHandler}</head>`);
+  } else if (finalHtml.includes('<head>')) {
+    finalHtml = finalHtml.replace('<head>', `<head>${errorHandler}`);
+  } else {
+    finalHtml = finalHtml.replace('<html>', '<html><head></head>');
+    finalHtml = finalHtml.replace('</head>', `${errorHandler}</head>`);
+  }
+  
+  // Inject JS into body at the end if it exists in state.files
+  if (jsContent && !finalHtml.includes('vibecode-injected-js')) {
+    const scriptTag = `<script id="vibecode-injected-js">\n${jsContent}\n<\/script>`;
+    if (finalHtml.includes('</body>')) {
+      finalHtml = finalHtml.replace('</body>', `${scriptTag}</body>`);
+    } else {
+      finalHtml = finalHtml.replace('</html>', `${scriptTag}</html>`);
+    }
+  }
+  
+  // Debug log to see what's being sent
+  console.log('Iframe HTML length:', finalHtml.length);
+  console.log('CSS injected:', cssInjected);
+  console.log('CSS present:', !!cssContent);
+  console.log('JS injected:', !!jsContent);
+  
   const iframe = document.getElementById('run-iframe');
   const ibar = document.getElementById('iframe-bar');
-  iframe.srcdoc = intercepted;
+  
+  iframe.srcdoc = finalHtml;
   iframe.classList.add('visible');
   ibar.classList.add('visible');
+  
   log('✓ Running in preview window', 'ok');
   setStatus('Running…');
-
+  
+  // Error handling for iframe loading
   state._runError = null;
   const errorWait = new Promise(res => {
-    const tid = setTimeout(() => res(null), 1500);
+    const tid = setTimeout(() => res(null), 2000);
     window._pendingRunResolve = (err) => { clearTimeout(tid); res(err); };
   });
   errorWait.then(error => {
