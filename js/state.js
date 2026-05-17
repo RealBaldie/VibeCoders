@@ -108,6 +108,24 @@ const state = {
     if (this.userGroqKeys) stats.groq.user = this.userGroqKeys.length;
     
     return stats;
+  },
+
+
+  // Add this to state object
+  async fetchKeysFromBackend() {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/get-keys`);
+      if (response.ok) {
+        const data = await response.json();
+        this.geminiApiKeys = data.geminiKeys || [];
+        this.groqApiKeys = data.groqKeys || [];
+        this.saveToLocalStorage();
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to fetch keys:', error);
+    }
+    return false;
   }
 };
 
