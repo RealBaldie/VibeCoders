@@ -2,7 +2,7 @@
 
 // Update key stats display
 function updateKeyStats() {
-  const stats = state.getKeyStats();
+  const stats = state.getKeyStats ? state.getKeyStats() : { gemini: { total: 0 }, groq: { total: 0 } };
   const geminiSpan = document.getElementById('gemini-key-stats');
   const groqSpan = document.getElementById('groq-key-stats');
   
