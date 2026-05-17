@@ -42,6 +42,22 @@ const state = {
   getFullChangeLog() {
     return this.changeLog;
   },
+
+  getKeyStats() {
+    return {
+      gemini: {
+        total: this.geminiApiKeys?.length || 0,
+        default: 0,  // or calculate if you have default keys
+        user: this.userGeminiKeys?.length || 0
+      },
+      groq: {
+        total: this.groqApiKeys?.length || 0,
+        default: 0,
+        user: this.userGroqKeys?.length || 0
+      }
+    };
+  }
+
   
   addChangeLogEntry(requestText, requestSummary, implementationSummary, filesModified) {
     const newId = this.changeLog.length + 1;
