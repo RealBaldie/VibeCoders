@@ -250,10 +250,15 @@ function getLangContext() {
   };
 }
 
+async function callClaude(systemPrompt, userMessage) {
+  return callGemini(systemPrompt, userMessage);
+}
+
 // ============================================
 // 📚 EXPORTS (for use in other files)
 // ============================================
-
+// Fix for auto-fix.js
+window.callClaude = callClaude;
 // Make sure all functions are globally available
 window.callGemini = callGemini;
 window.parseFilesFromResponse = parseFilesFromResponse;
